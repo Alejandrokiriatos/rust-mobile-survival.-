@@ -1,0 +1,14 @@
+0 assets/quaternius/ultimate-animated-animals/ASSET_MANIFEST.txt
+364 assets/quaternius/ultimate-animated-animals/License.txt
+1435679 assets/quaternius/ultimate-animated-animals/Alpaca.gltf
+2894445 assets/quaternius/ultimate-animated-animals/ShibaInu.gltf
+3059335 assets/quaternius/ultimate-animated-animals/Husky.gltf
+3110158 assets/quaternius/ultimate-animated-animals/Bull.gltf
+3114187 assets/quaternius/ultimate-animated-animals/Cow.gltf
+3163174 assets/quaternius/ultimate-animated-animals/Fox.gltf
+3175890 assets/quaternius/ultimate-animated-animals/Wolf.gltf
+3224724 assets/quaternius/ultimate-animated-animals/Stag.gltf
+3288813 assets/quaternius/ultimate-animated-animals/Deer.gltf
+3564269 assets/quaternius/ultimate-animated-animals/Donkey.gltf
+3607730 assets/quaternius/ultimate-animated-animals/Horse_White.gltf
+3610082 assets/quaternius/ultimate-animated-animals/Horse.gltf
