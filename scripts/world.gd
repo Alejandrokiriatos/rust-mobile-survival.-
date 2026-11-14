@@ -348,21 +348,29 @@ func _make_hud() -> void:
     control_layer.add_child(mobile_joystick)
     player.joystick = mobile_joystick
 
-    # Grupo táctil circular: acciones separadas y alcanzables con el pulgar.
-    # Acciones agrupadas en dos columnas, sin invadir la barra de objetos.
-    _add_control_button("SALTAR", Vector2(-100, -110), Vector2(68, 68), "jump", "hold", "jump")
+    # HUD táctil estilo survival/FPS: joystick y sprint a la izquierda;
+    # ataque dominante y acciones secundarias agrupadas en la esquina derecha.
     _add_sprint_button()
-    _add_crouch_button()
-    interact_button = _create_action_button("", Vector2(-100, -190), Vector2(66, 66))
+
+    var crouch_button := _create_action_button("", Vector2(-112, -205), Vector2(64, 64))
+    _set_action_icon(crouch_button, "crouch")
+    crouch_button.button_down.connect(player.set_crouching.bind(true))
+    crouch_button.button_up.connect(player.set_crouching.bind(false))
+    control_layer.add_child(crouch_button)
+
+    _add_control_button("", Vector2(-28, -205), Vector2(64, 64), "jump", "hold", "jump")
+
+    interact_button = _create_action_button("", Vector2(-112, -125), Vector2(62, 62))
     _set_action_icon(interact_button, "use")
     interact_button.pressed.connect(_try_harvest)
     control_layer.add_child(interact_button)
-    var attack_button := _create_action_button("", Vector2(-180, -190), Vector2(66, 66))
+
+    var attack_button := _create_action_button("", Vector2(-28, -116), Vector2(78, 78))
     _set_action_icon(attack_button, "attack")
     attack_button.pressed.connect(_try_attack)
     control_layer.add_child(attack_button)
 
-    # Inventario y fabricación se sitúan debajo del minimapa, en una fila separada.
+    # Inventario y fabricación quedan como utilidades pequeñas bajo el minimapa.
     var bag := _create_action_button("", Vector2(-116, 148), Vector2(50, 50), true)
     _set_action_icon(bag, "backpack")
     bag.pressed.connect(_toggle_inventory_panel)
@@ -644,7 +652,11 @@ func _add_hold_button(label_text: String, offset: Vector2, action: String, wide:
     control_layer.add_child(button)
 
 func _add_sprint_button() -> void:
-    var button := _create_action_button("CORRER", Vector2(-100, -270), Vector2(66, 66))
+    # Sprint queda encima y a la derecha del joystick, en la zona del pulgar izquierdo.
+    var button := _create_action_button("", Vector2(142, -260), Vector2(58, 58))
+    button.anchor_left = 0.0
+    button.anchor_right = 0.0
+    button.position = Vector2(142, -260)
     _set_action_icon(button, "sprint")
     button.button_down.connect(player.set_sprinting.bind(true))
     button.button_up.connect(player.set_sprinting.bind(false))
