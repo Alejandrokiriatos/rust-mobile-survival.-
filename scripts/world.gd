@@ -52,7 +52,7 @@ func _load_nature_pack() -> void:
     var files := {
         "Madera": ["tree_default.glb", "tree_oak.glb"],
         "Piedra": ["rock_largeA.glb", "rock_smallA.glb"],
-        "Fibra": ["plant_bush.glb", "plant_bushLarge.glb"]
+        "Fibra": ["plant_bush.glb", "grass.glb"]
     }
     for kind in files:
         var available: Array[PackedScene] = []
