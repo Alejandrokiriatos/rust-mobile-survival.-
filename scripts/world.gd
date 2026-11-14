@@ -162,7 +162,6 @@ func _make_large_terrain() -> void:
 func _make_terrain_chunk(chunk_x: int, chunk_z: int, material: ShaderMaterial) -> void:
     var vertices := PackedVector3Array()
     var normals := PackedVector3Array()
-    var colors := PackedColorArray()
     var indices := PackedInt32Array()
     var origin_x := -WORLD_SIZE * 0.5 + float(chunk_x) * CHUNK_SIZE
     var origin_z := -WORLD_SIZE * 0.5 + float(chunk_z) * CHUNK_SIZE
@@ -176,17 +175,6 @@ func _make_terrain_chunk(chunk_x: int, chunk_z: int, material: ShaderMaterial) -
             var slope_x := _height_at(px + step, pz) - _height_at(px - step, pz)
             var slope_z := _height_at(px, pz + step) - _height_at(px, pz - step)
             normals.append(Vector3(-slope_x, step * 2.0, -slope_z).normalized())
-            var edge_distance := maxf(absf(px), absf(pz)) / (WORLD_SIZE * 0.49)
-            var tint: Color
-            if h < WATER_LEVEL + 1.2:
-                tint = Color(0.67, 0.59, 0.39)
-            elif h > 11.0:
-                tint = Color(0.34, 0.48, 0.30)
-            elif edge_distance > 0.78:
-                tint = Color(0.68, 0.62, 0.42)
-            else:
-                tint = Color(0.25, 0.43, 0.20)
-            colors.append(tint)
     var row := CHUNK_SEGMENTS + 1
     for z in range(CHUNK_SEGMENTS):
         for x in range(CHUNK_SEGMENTS):
@@ -199,7 +187,6 @@ func _make_terrain_chunk(chunk_x: int, chunk_z: int, material: ShaderMaterial) -
     arrays.resize(Mesh.ARRAY_MAX)
     arrays[Mesh.ARRAY_VERTEX] = vertices
     arrays[Mesh.ARRAY_NORMAL] = normals
-    arrays[Mesh.ARRAY_COLOR] = colors
     arrays[Mesh.ARRAY_INDEX] = indices
     var mesh := ArrayMesh.new()
     mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
