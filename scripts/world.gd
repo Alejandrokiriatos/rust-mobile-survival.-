@@ -5,7 +5,7 @@ class MinimapRadar extends Control:
     var cached_coast := PackedVector2Array()
     var redraw_elapsed := 0.0
 
-func _process(delta: float) -> void:
+    func _process(delta: float) -> void:
         # El contorno se calcula una sola vez y el marcador se refresca a 10 Hz.
         redraw_elapsed += delta
         if redraw_elapsed >= 0.1:
