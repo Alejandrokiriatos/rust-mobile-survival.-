@@ -352,20 +352,20 @@ func _make_hud() -> void:
     # ataque dominante y acciones secundarias agrupadas en la esquina derecha.
     _add_sprint_button()
 
-    var crouch_button := _create_action_button("", Vector2(-112, -205), Vector2(64, 64))
+    var crouch_button := _create_action_button("", Vector2(-166, -204), Vector2(68, 68))
     _set_action_icon(crouch_button, "crouch")
     crouch_button.button_down.connect(player.set_crouching.bind(true))
     crouch_button.button_up.connect(player.set_crouching.bind(false))
     control_layer.add_child(crouch_button)
 
-    _add_control_button("", Vector2(-28, -205), Vector2(64, 64), "jump", "hold", "jump")
+    _add_control_button("", Vector2(-88, -204), Vector2(68, 68), "jump", "hold", "jump")
 
-    interact_button = _create_action_button("", Vector2(-112, -125), Vector2(62, 62))
+    interact_button = _create_action_button("", Vector2(-166, -126), Vector2(68, 68))
     _set_action_icon(interact_button, "use")
     interact_button.pressed.connect(_try_harvest)
     control_layer.add_child(interact_button)
 
-    var attack_button := _create_action_button("", Vector2(-28, -116), Vector2(78, 78))
+    var attack_button := _create_action_button("", Vector2(-88, -126), Vector2(78, 78))
     _set_action_icon(attack_button, "attack")
     attack_button.pressed.connect(_try_attack)
     control_layer.add_child(attack_button)
@@ -882,9 +882,9 @@ func _set_action_icon(button: Button, icon_name: String) -> void:
 func _style_action_button(button: Button, round_button: bool = false) -> void:
     # Control táctil circular: vidrio ahumado, aro claro y sombra para separarlo del mundo.
     var normal := StyleBoxFlat.new()
-    normal.bg_color = Color(0.055, 0.065, 0.070, 0.78)
-    normal.border_color = Color(0.91, 0.94, 0.96, 0.58)
-    normal.set_border_width_all(1)
+    normal.bg_color = Color(0.025, 0.038, 0.046, 0.88)
+    normal.border_color = Color(0.82, 0.90, 0.94, 0.76)
+    normal.set_border_width_all(2)
     normal.set_corner_radius_all(999 if round_button else 12)
     normal.shadow_color = Color(0.0, 0.0, 0.0, 0.48)
     normal.shadow_size = 8
@@ -892,7 +892,7 @@ func _style_action_button(button: Button, round_button: bool = false) -> void:
     normal.set_content_margin_all(7)
     button.add_theme_stylebox_override("normal", normal)
     var pressed := StyleBoxFlat.new()
-    pressed.bg_color = Color(0.24, 0.30, 0.33, 0.94)
+    pressed.bg_color = Color(0.12, 0.24, 0.30, 0.97)
     pressed.border_color = Color(0.68, 0.86, 1.0, 0.95)
     pressed.set_border_width_all(2)
     pressed.set_corner_radius_all(999 if round_button else 12)
@@ -908,7 +908,7 @@ func _style_action_button(button: Button, round_button: bool = false) -> void:
     button.add_theme_color_override("font_pressed_color", Color.WHITE)
     button.add_theme_color_override("font_hover_color", Color.WHITE)
     button.add_theme_font_size_override("font_size", 11)
-    button.add_theme_constant_override("icon_max_width", 42)
+    button.add_theme_constant_override("icon_max_width", 46)
 
 func _has_all_resource_models() -> bool:
     for kind in ["Madera", "Piedra", "Fibra"]:
