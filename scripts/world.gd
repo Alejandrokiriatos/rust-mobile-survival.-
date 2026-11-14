@@ -354,7 +354,7 @@ func _make_hud() -> void:
     interact_button = _create_action_button("✚\nUSAR", Vector2(-104, -246), Vector2(68, 68))
     interact_button.pressed.connect(_try_harvest)
     control_layer.add_child(interact_button)
-    var attack_button := _create_action_button("✊\nGOLPE", Vector2(-104, -164), Vector2(78, 78))
+    var attack_button := _create_action_button("◎\nGOLPE", Vector2(-104, -164), Vector2(78, 78))
     attack_button.pressed.connect(_try_attack)
     control_layer.add_child(attack_button)
 
@@ -492,10 +492,10 @@ func _make_hotbar_preview(slot: Button, model_file: String, item_name: String, s
                         model.position = -center * model.scale.x
                     var camera := Camera3D.new()
                     camera.position = Vector3(1.45, 1.15, 1.75)
-                    camera.look_at(Vector3.ZERO, Vector3.UP)
                     camera.projection = Camera3D.PROJECTION_ORTHOGONAL
                     camera.size = 1.85
                     viewport.add_child(camera)
+                    camera.look_at(Vector3.ZERO, Vector3.UP)
                     camera.current = true
                     var light := DirectionalLight3D.new()
                     light.rotation_degrees = Vector3(-42, -28, 0)
