@@ -25,7 +25,7 @@ jobs:
           set -euo pipefail
           python -m pip install --disable-pip-version-check gdown
           mkdir -p /tmp/quaternius
-          gdown --folder "https://drive.google.com/drive/folders/1uJ3N5HfB7jKTseJUNQr3N4YaN0UuEtHk" --output /tmp/quaternius --remaining-ok
+          gdown --folder "https://drive.google.com/drive/folders/1uJ3N5HfB7jKTseJUNQr3N4YaN0UuEtHk" --output /tmp/quaternius
 
       - name: Seleccionar archivos glTF para Godot y comprobar tamaño
         shell: bash
