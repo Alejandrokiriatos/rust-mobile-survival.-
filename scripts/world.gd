@@ -5,7 +5,25 @@ class MinimapRadar extends Control:
     var cached_coast := PackedVector2Array()
     var redraw_elapsed := 0.0
 
-    func _process(delta: float) -> void:
+    func _unhandled_input(event: InputEvent) -> void:
+    if not (event is InputEventKey and event.pressed and not event.echo):
+        return
+    match event.keycode:
+        KEY_1: _select_hotbar_slot(0)
+        KEY_2: _select_hotbar_slot(1)
+        KEY_3: _select_hotbar_slot(2)
+        KEY_4: _select_hotbar_slot(3)
+        KEY_5: _select_hotbar_slot(4)
+        KEY_6: _select_hotbar_slot(5)
+        KEY_I: _toggle_inventory_panel()
+        KEY_C: _toggle_craft_panel()
+        KEY_ESCAPE:
+            if is_instance_valid(inventory_panel) and inventory_panel.visible:
+                inventory_panel.visible = false
+            elif is_instance_valid(craft_panel) and craft_panel.visible:
+                craft_panel.visible = false
+
+func _process(delta: float) -> void:
         # El contorno se calcula una sola vez y el marcador se refresca a 10 Hz.
         redraw_elapsed += delta
         if redraw_elapsed >= 0.1:
@@ -1030,6 +1048,7 @@ func _save_game(show_message: bool = true) -> void:
     config.set_value("player", "health", player.health)
     config.set_value("player", "hunger", player.hunger)
     config.set_value("player", "thirst", player.thirst)
+    config.set_value("player", "stamina", player.stamina)
     config.set_value("player", "inventory", player.inventory)
     config.set_value("player", "axe_unlocked", player.axe_unlocked)
     config.set_value("world", "day_clock", day_clock)
@@ -1053,6 +1072,7 @@ func _load_game() -> void:
     player.health = float(config.get_value("player", "health", 100.0))
     player.hunger = float(config.get_value("player", "hunger", 100.0))
     player.thirst = float(config.get_value("player", "thirst", 100.0))
+    player.stamina = float(config.get_value("player", "stamina", 100.0))
     var saved_inventory: Dictionary = config.get_value("player", "inventory", {})
     for key in saved_inventory:
         player.inventory[key] = saved_inventory[key]
