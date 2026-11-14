@@ -2,52 +2,65 @@ extends CharacterBody3D
 class_name WildAnimal
 
 @export var move_speed := 2.2
-@export var detection_range := 15.0
+@export var detection_range := 17.0
 @export var attack_range := 1.8
-@export var damage := 5.0
+@export var damage := 7.0
+@export var model_path := ""
+@export var species := "Deer"
+@export var is_predator := false
+@export var model_scale := 1.0
 
 var target: Node3D
 var home := Vector3.ZERO
 var wander_target := Vector3.ZERO
 var wander_timer := 0.0
 var attack_timer := 0.0
+var flee_timer := 0.0
+var health := 60.0
+var animation_player: AnimationPlayer
+var current_animation := ""
 var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 
+func configure(data: Dictionary) -> void:
+    species = str(data.get("species", species))
+    model_path = str(data.get("path", model_path))
+    is_predator = bool(data.get("predator", is_predator))
+    move_speed = float(data.get("speed", move_speed))
+    model_scale = float(data.get("scale", model_scale))
+    damage = float(data.get("damage", damage))
+
 func _ready() -> void:
+    add_to_group("wild_animals")
     home = global_position
     _choose_wander_target()
     _build_visual()
 
 func _build_visual() -> void:
-    var body_mesh := MeshInstance3D.new()
-    var body := CapsuleMesh.new()
-    body.radius = 0.48
-    body.height = 1.15
-    body_mesh.mesh = body
-    body_mesh.position.y = 0.62
-    var body_mat := StandardMaterial3D.new()
-    body_mat.albedo_color = Color(0.28, 0.19, 0.14)
-    body_mat.roughness = 0.95
-    body_mesh.material_override = body_mat
-    add_child(body_mesh)
-
-    var head_mesh := MeshInstance3D.new()
-    var head := SphereMesh.new()
-    head.radius = 0.34
-    head.height = 0.62
-    head_mesh.mesh = head
-    head_mesh.position = Vector3(0, 0.68, -0.48)
-    head_mesh.scale = Vector3(1.0, 0.82, 1.15)
-    head_mesh.material_override = body_mat
-    add_child(head_mesh)
-
+    var visual_root := Node3D.new()
+    visual_root.name = "AnimatedModel"
+    visual_root.scale = Vector3.ONE * model_scale
+    add_child(visual_root)
+    if model_path.is_empty() or not ResourceLoader.exists(model_path):
+        push_warning("No se encontró el modelo 3D de " + species + ": " + model_path)
+    else:
+        var packed := load(model_path) as PackedScene
+        if packed != null:
+            var instance := packed.instantiate()
+            visual_root.add_child(instance)
+            var players := instance.find_children("*", "AnimationPlayer", true, false)
+            if not players.is_empty():
+                animation_player = players[0] as AnimationPlayer
+                print(species, " animaciones: ", animation_player.get_animation_list())
+        else:
+            push_warning("Godot no pudo importar el modelo de " + species)
     var collider := CollisionShape3D.new()
     var shape := CapsuleShape3D.new()
-    shape.radius = 0.42
-    shape.height = 1.15
+    shape.radius = 0.38 if not is_predator else 0.43
+    shape.height = 1.35 if species in ["Fox", "ShibaInu", "Husky"] else 1.65
     collider.shape = shape
-    collider.position.y = 0.58
+    collider.position.y = shape.height * 0.5
     add_child(collider)
+    _play_state("idle")
 
 func _physics_process(delta: float) -> void:
     if not is_instance_valid(target):
@@ -57,35 +70,85 @@ func _physics_process(delta: float) -> void:
     if not is_on_floor():
         velocity.y -= gravity * delta
     var desired := Vector3.ZERO
+    var state := "idle"
     if is_instance_valid(target):
         var to_player := target.global_position - global_position
         to_player.y = 0.0
-        if to_player.length() < detection_range:
-            if to_player.length() > attack_range:
-                desired = to_player.normalized() * move_speed * 1.25
+        var distance := to_player.length()
+        if is_predator and distance < detection_range:
+            if distance > attack_range:
+                desired = to_player.normalized() * move_speed * 1.3
+                state = "run"
             else:
                 attack_timer -= delta
+                state = "attack"
                 if attack_timer <= 0.0 and target.has_method("take_damage"):
                     target.take_damage(damage)
-                    attack_timer = 1.35
-        else:
+                    attack_timer = 1.45
+        elif not is_predator and distance < 6.0:
+            desired = -to_player.normalized() * move_speed * 1.35
+            flee_timer = 2.0
+            state = "run"
+        elif distance > detection_range * 1.6:
             target = null
     if desired.length_squared() < 0.01:
-        wander_timer -= delta
-        if wander_timer <= 0.0 or global_position.distance_to(wander_target) < 1.2:
-            _choose_wander_target()
-        var direction := wander_target - global_position
-        direction.y = 0.0
-        if direction.length() > 0.5:
-            desired = direction.normalized() * move_speed * 0.42
+        if flee_timer > 0.0:
+            flee_timer -= delta
+            var away := global_position - target.global_position if is_instance_valid(target) else global_position - home
+            away.y = 0.0
+            if away.length_squared() > 0.01:
+                desired = away.normalized() * move_speed
+                state = "run"
+        else:
+            wander_timer -= delta
+            if wander_timer <= 0.0 or global_position.distance_to(wander_target) < 1.2:
+                _choose_wander_target()
+            var direction := wander_target - global_position
+            direction.y = 0.0
+            if direction.length() > 0.5:
+                desired = direction.normalized() * move_speed * 0.42
+                state = "walk"
     velocity.x = move_toward(velocity.x, desired.x, 7.0 * delta)
     velocity.z = move_toward(velocity.z, desired.z, 7.0 * delta)
     if desired.length_squared() > 0.05:
-        look_at(global_position + Vector3(desired.x, 0, desired.z), Vector3.UP)
+        look_at(global_position + Vector3(desired.x, 0.0, desired.z), Vector3.UP)
+    _play_state(state)
     move_and_slide()
 
+func _play_state(state: String) -> void:
+    if animation_player == null:
+        return
+    var names := animation_player.get_animation_list()
+    var wanted := ""
+    var terms: Array[String] = []
+    match state:
+        "run":
+            terms = ["run", "gallop", "sprint"]
+        "walk":
+            terms = ["walk", "move"]
+        "attack":
+            terms = ["attack", "bite"]
+        _:
+            terms = ["idle", "stand"]
+    for term in terms:
+        for animation_name in names:
+            if str(animation_name).to_lower().contains(term):
+                wanted = str(animation_name)
+                break
+        if not wanted.is_empty():
+            break
+    if wanted.is_empty() and not names.is_empty():
+        wanted = str(names[0])
+    if wanted != current_animation:
+        current_animation = wanted
+        if not wanted.is_empty():
+            animation_player.play(wanted)
+
+func take_damage(amount: float) -> void:
+    health = maxf(0.0, health - amount)
+    if health <= 0.0:
+        queue_free()
+
 func _choose_wander_target() -> void:
-    var rng := RandomNumberGenerator.new()
-    rng.randomize()
-    wander_target = home + Vector3(rng.randf_range(-10, 10), 0, rng.randf_range(-10, 10))
-    wander_timer = rng.randf_range(2.5, 5.0)
+    wander_target = home + Vector3(randf_range(-13.0, 13.0), 0.0, randf_range(-13.0, 13.0))
+    wander_timer = randf_range(2.5, 5.0)
