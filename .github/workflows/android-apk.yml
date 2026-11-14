@@ -2,6 +2,15 @@ name: Exportar APK Android de prueba
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "project.godot"
+      - "export_presets.cfg"
+      - "scenes/**"
+      - "scripts/**"
+      - "assets/**"
+      - ".github/workflows/android-apk.yml"
 
 permissions:
   contents: read
