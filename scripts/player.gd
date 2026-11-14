@@ -36,7 +36,7 @@ func _ready() -> void:
     camera.far = 260.0
     # Ángulo inicial ligeramente hacia el suelo: muestra el relieve y la vegetación
     # desde el primer fotograma, sin obligar al jugador a mover la cámara.
-    camera.rotation.x = deg_to_rad(-9.0)
+    camera.rotation.x = deg_to_rad(9.0)
     camera.current = true
     add_child(camera)
     floor_snap_length = 0.35
