@@ -908,7 +908,7 @@ func _style_action_button(button: Button, round_button: bool = false) -> void:
     button.add_theme_color_override("font_pressed_color", Color.WHITE)
     button.add_theme_color_override("font_hover_color", Color.WHITE)
     button.add_theme_font_size_override("font_size", 11)
-    button.add_theme_constant_override("icon_max_width", 30)
+    button.add_theme_constant_override("icon_max_width", 42)
 
 func _has_all_resource_models() -> bool:
     for kind in ["Madera", "Piedra", "Fibra"]:
