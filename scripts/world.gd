@@ -272,7 +272,7 @@ func _make_hud() -> void:
     var stack := VBoxContainer.new()
     panel.add_child(stack)
     var title := Label.new()
-    title.text = "RUST MOBILE SURVIVAL  v0.3.0"
+    title.text = "RUST MOBILE SURVIVAL  v0.3.1"
     title.add_theme_font_size_override("font_size", 12)
     stack.add_child(title)
     health_bar = _make_bar(stack, "VIDA", Color(0.82, 0.16, 0.13))
