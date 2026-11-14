@@ -56,10 +56,10 @@ jobs:
           mkdir -p /tmp/godot
           unzip -q /tmp/godot.zip -d /tmp/godot
           chmod +x /tmp/godot/Godot_v4.4.1-stable_linux.x86_64
-          echo "/tmp/godot" >> "$GITHUB_PATH"
+          echo "GODOT_BIN=/tmp/godot/Godot_v4.4.1-stable_linux.x86_64" >> "$GITHUB_ENV"
 
       - name: Importar recursos y validar scripts
-        run: godot --headless --editor --path . --import --quit
+        run: "$GODOT_BIN" --headless --editor --path . --import --quit
 
       - name: Ejecutar escena principal en modo headless
-        run: godot --headless --path . --quit-after 5
+        run: "$GODOT_BIN" --headless --path . --quit-after 5
