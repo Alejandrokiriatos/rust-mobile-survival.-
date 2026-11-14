@@ -5,24 +5,6 @@ class MinimapRadar extends Control:
     var cached_coast := PackedVector2Array()
     var redraw_elapsed := 0.0
 
-    func _unhandled_input(event: InputEvent) -> void:
-    if not (event is InputEventKey and event.pressed and not event.echo):
-        return
-    match event.keycode:
-        KEY_1: _select_hotbar_slot(0)
-        KEY_2: _select_hotbar_slot(1)
-        KEY_3: _select_hotbar_slot(2)
-        KEY_4: _select_hotbar_slot(3)
-        KEY_5: _select_hotbar_slot(4)
-        KEY_6: _select_hotbar_slot(5)
-        KEY_I: _toggle_inventory_panel()
-        KEY_C: _toggle_craft_panel()
-        KEY_ESCAPE:
-            if is_instance_valid(inventory_panel) and inventory_panel.visible:
-                inventory_panel.visible = false
-            elif is_instance_valid(craft_panel) and craft_panel.visible:
-                craft_panel.visible = false
-
 func _process(delta: float) -> void:
         # El contorno se calcula una sola vez y el marcador se refresca a 10 Hz.
         redraw_elapsed += delta
@@ -128,6 +110,24 @@ func _ready() -> void:
     _scatter_ground_cover()
     _spawn_wildlife()
     _load_game()
+
+func _unhandled_input(event: InputEvent) -> void:
+    if not (event is InputEventKey and event.pressed and not event.echo):
+        return
+    match event.keycode:
+        KEY_1: _select_hotbar_slot(0)
+        KEY_2: _select_hotbar_slot(1)
+        KEY_3: _select_hotbar_slot(2)
+        KEY_4: _select_hotbar_slot(3)
+        KEY_5: _select_hotbar_slot(4)
+        KEY_6: _select_hotbar_slot(5)
+        KEY_I: _toggle_inventory_panel()
+        KEY_C: _toggle_craft_panel()
+        KEY_ESCAPE:
+            if is_instance_valid(inventory_panel) and inventory_panel.visible:
+                inventory_panel.visible = false
+            elif is_instance_valid(craft_panel) and craft_panel.visible:
+                craft_panel.visible = false
 
 func _process(delta: float) -> void:
     _update_day_night(delta)
