@@ -1,0 +1,78 @@
+name: Importar vegetación 3D de Quaternius
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/importar-vegetacion-quaternius.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  download-and-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Descargar paquete CC0 desde Godot Asset Store
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/nature
+          # El endpoint de la tienda genera una URL firmada temporal y curl sigue la redirección.
+          curl -L --fail --retry 3 --retry-delay 2 \
+            "https://store.godotengine.org/asset/quaternius/stylized-nature-megakit/download/31/" \
+            -o /tmp/stylized-nature.zip
+          unzip -q /tmp/stylized-nature.zip -d /tmp/nature
+          echo "ZIP descargado: $(stat -c%s /tmp/stylized-nature.zip) bytes"
+
+      - name: Seleccionar modelos glTF y dependencias
+        shell: bash
+        run: |
+          set -euo pipefail
+          SRC=/tmp/nature
+          DEST=assets/quaternius/stylized-nature-megakit
+          mkdir -p "$DEST"
+          GLTF_DIR="$(find "$SRC" -type d -iname 'gltf' -print -quit || true)"
+          if [ -n "$GLTF_DIR" ]; then
+            cp -a "$GLTF_DIR"/. "$DEST"/
+          else
+            # Mantener las rutas relativas para que los .gltf encuentren sus .bin y texturas.
+            while IFS= read -r model; do
+              rel="${model#"$SRC"/}"
+              mkdir -p "$DEST/$(dirname "$rel")"
+              cp "$model" "$DEST/$rel"
+            done < <(find "$SRC" -type f \( -iname '*.gltf' -o -iname '*.glb' \))
+            while IFS= read -r model; do
+              rel="${model#"$SRC"/}"
+              mkdir -p "$DEST/$(dirname "$rel")"
+              cp "$model" "$DEST/$rel"
+            done < <(find "$SRC" -type f \( -iname '*.bin' -o -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.webp' \))
+          fi
+          find "$SRC" -type f \( -iname 'license*' -o -iname 'readme*' \) -exec cp {} "$DEST"/ \; || true
+          MODEL_COUNT="$(find "$DEST" -type f \( -iname '*.gltf' -o -iname '*.glb' \) | wc -l)"
+          test "$MODEL_COUNT" -gt 0 || { echo "No se encontraron modelos glTF/GLB"; exit 1; }
+          TOTAL="$(du -sb "$DEST" | cut -f1)"
+          echo "Modelos 3D: $MODEL_COUNT"
+          echo "Tamaño seleccionado: $TOTAL bytes"
+          test "$TOTAL" -le 220000000 || { echo "La selección supera 220 MB; revisar antes de guardarla."; exit 1; }
+          find "$DEST" -type f -printf '%s %p\n' | sort -n > "$DEST/ASSET_MANIFEST.txt"
+
+      - name: Guardar modelos en GitHub
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/quaternius/stylized-nature-megakit
+          if git diff --cached --quiet; then
+            echo "No hay modelos nuevos que guardar."
+            exit 0
+          fi
+          git commit -m "Importar vegetación CC0 de Quaternius"
+          git push
