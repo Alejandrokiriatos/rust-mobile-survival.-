@@ -1,0 +1,70 @@
+name: Importar animales 3D de Quaternius
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/importar-animales-quaternius.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  download-and-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Descargar paquete público de Quaternius
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check gdown
+          mkdir -p /tmp/quaternius
+          gdown --folder "https://drive.google.com/drive/folders/1uJ3N5HfB7jKTseJUNQr3N4YaN0UuEtHk" --output /tmp/quaternius --remaining-ok
+
+      - name: Seleccionar archivos glTF para Godot y comprobar tamaño
+        shell: bash
+        run: |
+          set -euo pipefail
+          SRC=/tmp/quaternius
+          DEST=assets/quaternius/ultimate-animated-animals
+          mkdir -p "$DEST"
+
+          GLTF_DIR="$(find "$SRC" -type d \\( -iname 'gltf' -o -iname 'glTF' \\) -print -quit || true)"
+          if [ -n "$GLTF_DIR" ]; then
+            cp -a "$GLTF_DIR"/. "$DEST"/
+          else
+            find "$SRC" -type f \\( -iname '*.glb' -o -iname '*.gltf' \\) -exec cp --parents '{}' "$DEST"/ \\;
+          fi
+
+          find "$SRC" -type f \\( -iname 'license.txt' -o -iname 'license' -o -iname 'readme.txt' \\) -exec cp '{}' "$DEST"/ \\; || true
+
+          COUNT="$(find "$DEST" -type f | wc -l)"
+          test "$COUNT" -gt 0 || { echo "No se encontraron archivos glTF/GLB en el paquete."; exit 1; }
+
+          TOTAL="$(du -sb "$DEST" | cut -f1)"
+          echo "Archivos seleccionados: $COUNT"
+          echo "Tamaño total: $TOTAL bytes"
+          test "$TOTAL" -le 90000000 || { echo "El conjunto supera 90 MB; se cancela para no inflar el repositorio."; exit 1; }
+
+          find "$DEST" -type f -printf '%s %p\\n' | sort -n > "$DEST/ASSET_MANIFEST.txt"
+          echo "Importación de modelos glTF preparada."
+
+      - name: Guardar modelos en el repositorio
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/quaternius/ultimate-animated-animals
+          if git diff --cached --quiet; then
+            echo "No hay cambios nuevos que guardar."
+            exit 0
+          fi
+          git commit -m "Importar modelos animales CC0 de Quaternius"
+          git push
