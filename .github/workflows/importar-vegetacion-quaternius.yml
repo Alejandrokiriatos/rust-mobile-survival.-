@@ -54,6 +54,8 @@ jobs:
               cp "$model" "$DEST/$rel"
             done < <(find "$SRC" -type f \( -iname '*.bin' -o -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.webp' \))
           fi
+          # cp -a conserva permisos de solo lectura del ZIP; devolver escritura al runner.
+          chmod -R u+rwX "$DEST"
           find "$SRC" -type f \( -iname 'license*' -o -iname 'readme*' \) -exec cp {} "$DEST"/ \; || true
           MODEL_COUNT="$(find "$DEST" -type f \( -iname '*.gltf' -o -iname '*.glb' \) | wc -l)"
           test "$MODEL_COUNT" -gt 0 || { echo "No se encontraron modelos glTF/GLB"; exit 1; }
@@ -61,6 +63,7 @@ jobs:
           echo "Modelos 3D: $MODEL_COUNT"
           echo "Tamaño seleccionado: $TOTAL bytes"
           test "$TOTAL" -le 220000000 || { echo "La selección supera 220 MB; revisar antes de guardarla."; exit 1; }
+          chmod -R u+rwX "$DEST"
           find "$DEST" -type f -printf '%s %p\n' | sort -n > "$DEST/ASSET_MANIFEST.txt"
 
       - name: Guardar modelos en GitHub
