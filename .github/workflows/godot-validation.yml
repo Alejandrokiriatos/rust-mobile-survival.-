@@ -1,0 +1,29 @@
+name: Godot validation
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  validate:
+    name: Import, parse and boot project
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Godot 4.4.1
+        uses: chickensoft-games/setup-godot@v2
+        with:
+          version: 4.4.1
+          use-dotnet: false
+          include-templates: false
+
+      - name: Import project resources and parse scripts
+        run: godot --headless --editor --path . --quit
+
+      - name: Boot main scene headlessly
+        run: godot --headless --path . --quit-after 180
