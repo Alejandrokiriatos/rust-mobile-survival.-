@@ -3,6 +3,8 @@ extends Node3D
 const PLAYER_SCRIPT = preload("res://scripts/player.gd")
 const RESOURCE_SCRIPT = preload("res://scripts/resource_node.gd")
 const JOYSTICK_SCRIPT = preload("res://scripts/mobile_joystick.gd")
+const ANIMAL_SCRIPT = preload("res://scripts/wild_animal.gd")
+const BUILDABLE_SCRIPT = preload("res://scripts/survival_buildable.gd")
 const WORLD_SIZE := 512.0
 const CHUNK_COUNT := 4
 const CHUNK_SIZE := WORLD_SIZE / CHUNK_COUNT
@@ -21,6 +23,11 @@ var terrain_noise := FastNoiseLite.new()
 var detail_noise := FastNoiseLite.new()
 var asset_scenes: Dictionary = {}
 var rng := RandomNumberGenerator.new()
+var sun_light: DirectionalLight3D
+var world_environment: Environment
+var day_clock := 0.22
+var craft_panel: PanelContainer
+var day_label: Label
 
 func _ready() -> void:
     rng.randomize()
@@ -32,6 +39,8 @@ func _ready() -> void:
     _make_player()
     _make_hud()
     _scatter_resources()
+    _spawn_wildlife()
+    _load_game()
 
 func _process(_delta: float) -> void:
     if is_instance_valid(player) and is_instance_valid(hud):
@@ -96,14 +105,15 @@ func _make_environment() -> void:
     e.fog_sky_affect = 0.65
     env.environment = e
     add_child(env)
-    var sun := DirectionalLight3D.new()
-    sun.rotation_degrees = Vector3(-48, -32, 0)
-    sun.light_energy = 1.0
-    sun.shadow_enabled = true
-    sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
-    sun.directional_shadow_max_distance = 65.0
-    sun.directional_shadow_fade_start = 0.8
-    add_child(sun)
+    world_environment = e
+    sun_light = DirectionalLight3D.new()
+    sun_light.rotation_degrees = Vector3(-48, -32, 0)
+    sun_light.light_energy = 1.0
+    sun_light.shadow_enabled = true
+    sun_light.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
+    sun_light.directional_shadow_max_distance = 65.0
+    sun_light.directional_shadow_fade_start = 0.8
+    add_child(sun_light)
 
 func _height_at(x: float, z: float) -> float:
     var radial_distance := Vector2(x, z).length()
@@ -226,100 +236,295 @@ func _make_hud() -> void:
 
     var hud_panel := Panel.new()
     hud_panel.position = Vector2(12, 10)
-    hud_panel.size = Vector2(350, 92)
+    hud_panel.size = Vector2(370, 112)
     var panel_style := StyleBoxFlat.new()
-    panel_style.bg_color = Color(0.035, 0.07, 0.055, 0.78)
+    panel_style.bg_color = Color(0.025, 0.055, 0.045, 0.78)
     panel_style.set_corner_radius_all(12)
     panel_style.set_content_margin_all(10)
     hud_panel.add_theme_stylebox_override("panel", panel_style)
     control_layer.add_child(hud_panel)
 
     hud = Label.new()
-    hud.position = Vector2(22, 18)
-    hud.add_theme_font_size_override("font_size", 17)
+    hud.position = Vector2(12, 8)
+    hud.size = Vector2(346, 96)
+    hud.add_theme_font_size_override("font_size", 15)
     hud.add_theme_color_override("font_color", Color(0.95, 0.98, 0.91))
     hud_panel.add_child(hud)
 
+    day_label = Label.new()
+    day_label.position = Vector2(18, 128)
+    day_label.add_theme_font_size_override("font_size", 14)
+    day_label.add_theme_color_override("font_color", Color(0.93, 0.91, 0.72))
+    control_layer.add_child(day_label)
+
     message = Label.new()
-    message.position = Vector2(18, 112)
-    message.add_theme_font_size_override("font_size", 16)
+    message.position = Vector2(18, 154)
+    message.size = Vector2(420, 34)
+    message.add_theme_font_size_override("font_size", 15)
     message.add_theme_color_override("font_color", Color(1.0, 0.91, 0.58))
     control_layer.add_child(message)
 
-    _add_hold_button("▲", Vector2(78, -166), "move_forward")
-    _add_hold_button("◀", Vector2(20, -110), "move_left")
-    _add_hold_button("▼", Vector2(78, -54), "move_back")
-    _add_hold_button("▶", Vector2(136, -110), "move_right")
-    _add_hold_button("SALTAR", Vector2(-158, -166), "jump", true)
+    mobile_joystick = JOYSTICK_SCRIPT.new()
+    mobile_joystick.anchor_left = 0.0
+    mobile_joystick.anchor_right = 0.0
+    mobile_joystick.anchor_top = 1.0
+    mobile_joystick.anchor_bottom = 1.0
+    mobile_joystick.position = Vector2(22, -178)
+    control_layer.add_child(mobile_joystick)
+    player.joystick = mobile_joystick
+
+    _add_hold_button("SALTAR", Vector2(-154, -92), "jump", true)
+    _add_sprint_button()
 
     interact_button = Button.new()
     interact_button.text = "RECOGER"
-    interact_button.size = Vector2(138, 58)
+    interact_button.size = Vector2(138, 48)
     interact_button.anchor_left = 1.0
     interact_button.anchor_right = 1.0
     interact_button.anchor_top = 1.0
     interact_button.anchor_bottom = 1.0
-    interact_button.position = Vector2(-158, -100)
-    interact_button.add_theme_font_size_override("font_size", 17)
+    interact_button.position = Vector2(-154, -218)
+    interact_button.add_theme_font_size_override("font_size", 15)
     _style_action_button(interact_button)
     interact_button.pressed.connect(_try_harvest)
     control_layer.add_child(interact_button)
 
-    var look_hint := Label.new()
-    look_hint.text = "DESLIZA AQUÍ PARA MIRAR"
-    look_hint.anchor_left = 1.0
-    look_hint.anchor_right = 1.0
-    look_hint.anchor_top = 1.0
-    look_hint.anchor_bottom = 1.0
-    look_hint.position = Vector2(-300, -30)
-    look_hint.size = Vector2(285, 24)
-    look_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-    look_hint.add_theme_font_size_override("font_size", 12)
-    look_hint.add_theme_color_override("font_color", Color(1, 1, 1, 0.55))
-    control_layer.add_child(look_hint)
+    var craft_toggle := Button.new()
+    craft_toggle.text = "FABRICAR"
+    craft_toggle.size = Vector2(138, 42)
+    craft_toggle.anchor_left = 1.0
+    craft_toggle.anchor_right = 1.0
+    craft_toggle.position = Vector2(-154, 12)
+    _style_action_button(craft_toggle)
+    craft_toggle.pressed.connect(_toggle_craft_panel)
+    control_layer.add_child(craft_toggle)
+
+    var save_button := Button.new()
+    save_button.text = "GUARDAR"
+    save_button.size = Vector2(112, 36)
+    save_button.anchor_left = 1.0
+    save_button.anchor_right = 1.0
+    save_button.position = Vector2(-128, 60)
+    save_button.add_theme_font_size_override("font_size", 13)
+    _style_action_button(save_button)
+    save_button.pressed.connect(_save_game)
+    control_layer.add_child(save_button)
+
+    _make_craft_panel()
 
 func _add_hold_button(label_text: String, offset: Vector2, action: String, wide: bool = false) -> void:
     var button := Button.new()
     button.text = label_text
-    button.size = Vector2(58, 54) if not wide else Vector2(138, 54)
-    button.anchor_left = 0.0 if offset.x >= 0.0 else 1.0
+    button.size = Vector2(138, 48) if wide else Vector2(58, 54)
+    button.anchor_left = 1.0 if offset.x < 0.0 else 0.0
     button.anchor_right = button.anchor_left
     button.anchor_top = 1.0
     button.anchor_bottom = 1.0
     button.position = offset
-    button.add_theme_font_size_override("font_size", 17 if wide else 25)
+    button.add_theme_font_size_override("font_size", 16 if wide else 24)
     _style_action_button(button)
-    button.button_down.connect(player.set_mobile_action.bind(action, true))
-    button.button_up.connect(player.set_mobile_action.bind(action, false))
+    button.button_down.connect(player.mobile_action.bind(action, true))
+    button.button_up.connect(player.mobile_action.bind(action, false))
     control_layer.add_child(button)
 
 func _add_sprint_button() -> void:
     var button := Button.new()
     button.text = "CORRER"
-    button.size = Vector2(138, 48)
+    button.size = Vector2(138, 42)
     button.anchor_left = 1.0
     button.anchor_right = 1.0
     button.anchor_top = 1.0
     button.anchor_bottom = 1.0
-    button.position = Vector2(-158, -232)
+    button.position = Vector2(-154, -154)
     button.add_theme_font_size_override("font_size", 15)
     _style_action_button(button)
     button.button_down.connect(player.set_sprinting.bind(true))
     button.button_up.connect(player.set_sprinting.bind(false))
     control_layer.add_child(button)
 
-func _style_action_button(button: Button) -> void:
-    var normal := StyleBoxFlat.new()
-    normal.bg_color = Color(0.035, 0.075, 0.065, 0.76)
-    normal.border_color = Color(0.72, 0.86, 0.72, 0.85)
-    normal.set_border_width_all(2)
-    normal.set_corner_radius_all(13)
-    button.add_theme_stylebox_override("normal", normal)
-    var pressed := normal.duplicate() as StyleBoxFlat
-    pressed.bg_color = Color(0.18, 0.36, 0.25, 0.94)
-    button.add_theme_stylebox_override("pressed", pressed)
-    button.add_theme_color_override("font_color", Color.WHITE)
-    button.add_theme_color_override("font_pressed_color", Color(1.0, 0.92, 0.62))
+func _make_craft_panel() -> void:
+    craft_panel = PanelContainer.new()
+    craft_panel.anchor_left = 1.0
+    craft_panel.anchor_right = 1.0
+    craft_panel.position = Vector2(-184, 112)
+    craft_panel.size = Vector2(170, 230)
+    craft_panel.visible = false
+    var style := StyleBoxFlat.new()
+    style.bg_color = Color(0.025, 0.055, 0.045, 0.94)
+    style.set_corner_radius_all(12)
+    style.set_content_margin_all(8)
+    craft_panel.add_theme_stylebox_override("panel", style)
+    var list := VBoxContainer.new()
+    list.add_theme_constant_override("separation", 6)
+    craft_panel.add_child(list)
+    var title := Label.new()
+    title.text = "SUPERVIVENCIA"
+    title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    title.add_theme_font_size_override("font_size", 14)
+    list.add_child(title)
+    _add_craft_option(list, "HACHA  3M + 2P", _craft_axe)
+    _add_craft_option(list, "REFUGIO  12M + 6F", _craft_shelter)
+    _add_craft_option(list, "FOGATA  5M + 3P", _craft_campfire)
+    _add_craft_option(list, "RACIONES  1M + 3F", _craft_rations)
+    _add_craft_option(list, "COMER", _eat)
+    _add_craft_option(list, "BEBER", _drink)
+    _add_craft_option(list, "CERRAR", _toggle_craft_panel)
+    control_layer.add_child(craft_panel)
+
+func _add_craft_option(parent: VBoxContainer, title: String, callback: Callable) -> void:
+    var button := Button.new()
+    button.text = title
+    button.custom_minimum_size = Vector2(150, 28)
+    button.add_theme_font_size_override("font_size", 12)
+    _style_action_button(button)
+    button.pressed.connect(callback)
+    parent.add_child(button)
+
+func _toggle_craft_panel() -> void:
+    craft_panel.visible = not craft_panel.visible
+
+func _has_cost(wood: int, stone: int, fiber: int) -> bool:
+    return int(player.inventory.get("Madera", 0)) >= wood and int(player.inventory.get("Piedra", 0)) >= stone and int(player.inventory.get("Fibra", 0)) >= fiber
+
+func _pay_cost(wood: int, stone: int, fiber: int) -> void:
+    player.inventory["Madera"] -= wood
+    player.inventory["Piedra"] -= stone
+    player.inventory["Fibra"] -= fiber
+
+func _craft_axe() -> void:
+    if player.axe_unlocked:
+        message.text = "Ya tienes un hacha."
+    elif _has_cost(3, 2, 0):
+        _pay_cost(3, 2, 0)
+        player.axe_unlocked = true
+        message.text = "Hacha fabricada: recolectas el doble de madera."
+    else:
+        message.text = "Necesitas 3 madera y 2 piedra."
+
+func _craft_shelter() -> void:
+    if not _has_cost(12, 0, 6):
+        message.text = "Necesitas 12 madera y 6 fibra."
+        return
+    _pay_cost(12, 0, 6)
+    _place_buildable("Refugio")
+    message.text = "Refugio construido."
+
+func _craft_campfire() -> void:
+    if not _has_cost(5, 3, 0):
+        message.text = "Necesitas 5 madera y 3 piedra."
+        return
+    _pay_cost(5, 3, 0)
+    _place_buildable("Fogata")
+    message.text = "Fogata encendida: ilumina de noche."
+
+func _craft_rations() -> void:
+    if not _has_cost(1, 0, 3):
+        message.text = "Necesitas 1 madera y 3 fibra."
+        return
+    _pay_cost(1, 0, 3)
+    player.inventory["Comida"] = int(player.inventory.get("Comida", 0)) + 2
+    message.text = "Preparaste 2 raciones."
+
+func _place_buildable(kind: String, saved_position: Vector3 = Vector3.INF) -> void:
+    var structure: SurvivalBuildable = BUILDABLE_SCRIPT.new()
+    structure.build_kind = kind
+    if saved_position == Vector3.INF:
+        var forward := -player.global_transform.basis.z
+        var candidate := player.global_position + forward * 3.2
+        candidate.y = _height_at(candidate.x, candidate.z)
+        structure.position = candidate
+    else:
+        structure.position = saved_position
+    add_child(structure)
+
+func _eat() -> void:
+    if int(player.inventory.get("Comida", 0)) <= 0:
+        message.text = "No tienes comida. Fabrica raciones."
+        return
+    player.inventory["Comida"] -= 1
+    player.restore_needs(35.0, 0.0)
+    message.text = "Comiste una ración."
+
+func _drink() -> void:
+    var near_water := absf(player.global_position.y - WATER_LEVEL) < 3.0 and Vector2(player.global_position.x, player.global_position.z).length() > WORLD_SIZE * 0.35
+    if near_water:
+        player.restore_needs(0.0, 45.0)
+        message.text = "Bebiste agua de la costa."
+    elif int(player.inventory.get("Agua", 0)) > 0:
+        player.inventory["Agua"] -= 1
+        player.restore_needs(0.0, 40.0)
+        message.text = "Bebiste agua almacenada."
+    else:
+        message.text = "Acércate a la costa para beber."
+
+func _spawn_wildlife() -> void:
+    for i in range(7):
+        var x := rng.randf_range(-WORLD_SIZE * 0.38, WORLD_SIZE * 0.38)
+        var z := rng.randf_range(-WORLD_SIZE * 0.38, WORLD_SIZE * 0.38)
+        if Vector2(x, z).length() < 45.0:
+            x += 70.0
+        var y := _height_at(x, z)
+        if y <= WATER_LEVEL + 1.0:
+            continue
+        var animal: WildAnimal = ANIMAL_SCRIPT.new()
+        animal.position = Vector3(x, y + 0.15, z)
+        add_child(animal)
+
+func _update_day_night(delta: float) -> void:
+    day_clock += delta / 900.0
+    var phase := fposmod(day_clock, 1.0)
+    var daylight := clampf(sin(phase * TAU), 0.0, 1.0)
+    if is_instance_valid(sun_light):
+        sun_light.rotation_degrees.x = -90.0 + phase * 360.0
+        sun_light.light_energy = 0.08 + daylight * 1.05
+        sun_light.light_color = Color(1.0, 0.70 + daylight * 0.25, 0.48 + daylight * 0.48)
+    if world_environment != null:
+        world_environment.ambient_light_energy = 0.18 + daylight * 0.62
+        world_environment.fog_light_color = Color(0.055, 0.075, 0.12).lerp(Color(0.58, 0.72, 0.78), daylight)
+        world_environment.background_energy_multiplier = 0.25 + daylight * 0.75
+
+func _time_of_day_name() -> String:
+    var phase := fposmod(day_clock, 1.0)
+    if phase < 0.20 or phase > 0.82:
+        return "NOCHE"
+    if phase < 0.30:
+        return "AMANECER"
+    if phase > 0.72:
+        return "ATARDECER"
+    return "DÍA"
+
+func _save_game() -> void:
+    var config := ConfigFile.new()
+    config.set_value("player", "position", player.global_position)
+    config.set_value("player", "health", player.health)
+    config.set_value("player", "hunger", player.hunger)
+    config.set_value("player", "thirst", player.thirst)
+    config.set_value("player", "inventory", player.inventory)
+    config.set_value("player", "axe_unlocked", player.axe_unlocked)
+    config.set_value("world", "day_clock", day_clock)
+    var structures: Array[Dictionary] = []
+    for item in get_tree().get_nodes_in_group("buildables"):
+        structures.append({"kind": item.build_kind, "position": item.global_position})
+    config.set_value("world", "structures", structures)
+    var error := config.save("user://rust_mobile_save.cfg")
+    message.text = "Partida guardada." if error == OK else "Error al guardar: %s" % error
+
+func _load_game() -> void:
+    var config := ConfigFile.new()
+    if config.load("user://rust_mobile_save.cfg") != OK:
+        return
+    player.global_position = config.get_value("player", "position", player.global_position)
+    player.health = float(config.get_value("player", "health", 100.0))
+    player.hunger = float(config.get_value("player", "hunger", 100.0))
+    player.thirst = float(config.get_value("player", "thirst", 100.0))
+    var saved_inventory: Dictionary = config.get_value("player", "inventory", {})
+    for key in saved_inventory:
+        player.inventory[key] = saved_inventory[key]
+    player.axe_unlocked = bool(config.get_value("player", "axe_unlocked", false))
+    day_clock = float(config.get_value("world", "day_clock", day_clock))
+    var structures: Array = config.get_value("world", "structures", [])
+    for entry in structures:
+        _place_buildable(str(entry.get("kind", "Refugio")), entry.get("position", Vector3.ZERO))
 
 func _has_all_resource_models() -> bool:
     for kind in ["Madera", "Piedra", "Fibra"]:
