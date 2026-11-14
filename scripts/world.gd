@@ -237,7 +237,7 @@ void fragment() {
     var material := ShaderMaterial.new()
     material.shader = shader
     var texture_paths := {
-        "grass_tex": "res://assets/terrain/ambientcg/Ground053_Color.jpg",
+        "grass_tex": "res://assets/terrain/ambientcg/Ground013_Color.jpg",
         "dirt_tex": "res://assets/terrain/ambientcg/Ground067_Color.jpg",
         "sand_tex": "res://assets/terrain/ambientcg/Ground090_Color.jpg",
         "rock_tex": "res://assets/terrain/ambientcg/Rock063_Color.jpg"

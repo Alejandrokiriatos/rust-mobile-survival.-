@@ -36,7 +36,7 @@ func _ready() -> void:
     camera.far = 320.0
     # Ángulo inicial ligeramente hacia el suelo: en Godot, el signo negativo
     # inclina la cámara hacia abajo y muestra terreno y vegetación al aparecer.
-    camera.rotation.x = deg_to_rad(-24.0)
+    camera.rotation.x = deg_to_rad(-12.0)
     camera.current = true
     add_child(camera)
     floor_snap_length = 0.35

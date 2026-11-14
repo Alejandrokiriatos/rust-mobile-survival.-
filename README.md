@@ -57,6 +57,6 @@ La APK se generará después de validar el juego y configurar la exportación An
 
 ## Licencias
 
-- Terreno PBR: ambientCG Ground 053, Ground 067, Ground 090 y Rock 063; CC0 1.0. Fuentes: https://ambientcg.com/view?id=Ground053, https://ambientcg.com/view?id=Ground067, https://ambientcg.com/view?id=Ground090, https://ambientcg.com/view?id=Rock063.
+- Terreno PBR: ambientCG Ground 013, Ground 067, Ground 090 y Rock 063; CC0 1.0. Fuentes: https://ambientcg.com/view?id=Ground013, https://ambientcg.com/view?id=Ground067, https://ambientcg.com/view?id=Ground090, https://ambientcg.com/view?id=Rock063.
 - Código del proyecto: MIT.
 - Naturaleza 3D: Kenney Nature Kit 2.1, CC0 1.0.
