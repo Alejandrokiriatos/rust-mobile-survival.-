@@ -1,8 +1,8 @@
 Terrain PBR textures from ambientCG.
-Assets: Grass 005, Ground 067, Ground 090, Rock 063.
+Assets: Ground 053, Ground 067, Ground 090, Rock 063.
 License: Creative Commons CC0 1.0 Universal.
 Official asset pages:
-https://ambientcg.com/view?id=Grass005
+https://ambientcg.com/view?id=Ground053
 https://ambientcg.com/view?id=Ground067
 https://ambientcg.com/view?id=Ground090
 https://ambientcg.com/view?id=Rock063

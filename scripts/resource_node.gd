@@ -4,6 +4,7 @@ class_name ResourceNode
 @export_enum("Madera", "Piedra", "Fibra") var resource_type := "Madera"
 @export var amount := 3
 var remaining := 3
+var resource_id := ""
 var model_scene: PackedScene
 var model_scale := Vector3.ONE
 
@@ -41,6 +42,9 @@ func harvest(player: SurvivalPlayer) -> String:
     remaining -= 1
     var yield_amount := 2 if resource_type == "Madera" and player.axe_unlocked else 1
     player.collect(resource_type, yield_amount)
+    var world := get_parent()
+    if world != null and world.has_method("on_resource_harvested"):
+        world.on_resource_harvested(resource_id, remaining)
     if remaining == 0:
         queue_free()
     return "+%d %s" % [yield_amount, resource_type]

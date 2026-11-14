@@ -10,7 +10,7 @@ const CHUNK_COUNT := 4
 const CHUNK_SIZE := WORLD_SIZE / CHUNK_COUNT
 const CHUNK_SEGMENTS := 96
 const WATER_LEVEL := -2.5
-const RESOURCE_COUNTS := {"Madera": 88, "Piedra": 58, "Fibra": 76}
+const RESOURCE_COUNTS := {"Madera": 150, "Piedra": 80, "Fibra": 130}
 const NATURE_PATH := "res://assets/kenney/nature-kit/"
 const NATURE_MEGA_PATH := "res://assets/quaternius/stylized-nature-megakit/"
 const MOBILE_ICON_PATH := "res://assets/ui/mobile-controls/"
@@ -31,6 +31,9 @@ var rng := RandomNumberGenerator.new()
 var sun_light: DirectionalLight3D
 var world_environment: Environment
 var day_clock := 0.22
+var autosave_timer := 0.0
+var resource_remaining_state: Dictionary = {}
+var depleted_resource_ids: Dictionary = {}
 var craft_panel: PanelContainer
 var day_label: Label
 var health_bar: ProgressBar
@@ -58,6 +61,10 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
     _update_day_night(delta)
+    autosave_timer += delta
+    if autosave_timer >= 60.0 and is_instance_valid(player):
+        autosave_timer = 0.0
+        _save_game(false)
     if not is_instance_valid(player):
         return
     if is_instance_valid(health_bar):
@@ -172,11 +179,11 @@ func _height_at(x: float, z: float) -> float:
     var coast_warp := coast_noise.get_noise_2d(x, z) * 0.105
     var edge := radial_distance / (WORLD_SIZE * 0.485) + coast_warp
     var land_shape := pow(clampf(1.0 - edge, 0.0, 1.0), 0.72)
-    var broad := terrain_noise.get_noise_2d(x, z) * 8.5
-    var detail := detail_noise.get_noise_2d(x, z) * 1.65
+    var broad := terrain_noise.get_noise_2d(x, z) * 12.0
+    var detail := detail_noise.get_noise_2d(x, z) * 2.0
     var ridge_value := maxf(0.0, ridge_noise.get_noise_2d(x, z))
-    var ridges := pow(ridge_value, 1.7) * 9.0
-    var elevation := 20.0 + broad + detail + ridges
+    var ridges := pow(ridge_value, 1.55) * 22.0
+    var elevation := 24.0 + broad + detail + ridges
     var base_height := -4.0 + land_shape * elevation
     # Zona de aparición suavizada, no una plataforma plana recortada.
     var spawn_blend := smoothstep(0.0, 34.0, radial_distance)
@@ -901,7 +908,16 @@ func _time_of_day_name() -> String:
         return "ATARDECER"
     return "DÍA"
 
-func _save_game() -> void:
+func on_resource_harvested(resource_id: String, remaining: int) -> void:
+    if resource_id.is_empty():
+        return
+    if remaining <= 0:
+        resource_remaining_state.erase(resource_id)
+        depleted_resource_ids[resource_id] = true
+    else:
+        resource_remaining_state[resource_id] = remaining
+
+func _save_game(show_message: bool = true) -> void:
     var config := ConfigFile.new()
     config.set_value("player", "position", player.global_position)
     config.set_value("player", "rotation", player.rotation)
@@ -912,12 +928,15 @@ func _save_game() -> void:
     config.set_value("player", "inventory", player.inventory)
     config.set_value("player", "axe_unlocked", player.axe_unlocked)
     config.set_value("world", "day_clock", day_clock)
+    config.set_value("world", "resource_remaining", resource_remaining_state)
+    config.set_value("world", "depleted_resources", depleted_resource_ids.keys())
     var structures: Array[Dictionary] = []
     for item in get_tree().get_nodes_in_group("buildables"):
         structures.append({"kind": item.build_kind, "position": item.global_position})
     config.set_value("world", "structures", structures)
     var error := config.save("user://rust_mobile_save.cfg")
-    message.text = "Partida guardada." if error == OK else "Error al guardar: %s" % error
+    if show_message and is_instance_valid(message):
+        message.text = "Partida guardada." if error == OK else "Error al guardar: %s" % error
 
 func _load_game() -> void:
     var config := ConfigFile.new()
@@ -934,6 +953,16 @@ func _load_game() -> void:
         player.inventory[key] = saved_inventory[key]
     player.axe_unlocked = bool(config.get_value("player", "axe_unlocked", false))
     day_clock = float(config.get_value("world", "day_clock", day_clock))
+    resource_remaining_state = config.get_value("world", "resource_remaining", {})
+    depleted_resource_ids.clear()
+    for resource_id in config.get_value("world", "depleted_resources", []):
+        depleted_resource_ids[str(resource_id)] = true
+    for resource_node in get_tree().get_nodes_in_group("harvestable"):
+        var node_id := str(resource_node.resource_id)
+        if depleted_resource_ids.has(node_id):
+            resource_node.queue_free()
+        elif resource_remaining_state.has(node_id):
+            resource_node.remaining = int(resource_remaining_state[node_id])
     var structures: Array = config.get_value("world", "structures", [])
     for entry in structures:
         _place_buildable(str(entry.get("kind", "Refugio")), entry.get("position", Vector3.ZERO))
@@ -1018,6 +1047,7 @@ func _create_resource(pos: Vector3, kind: String) -> void:
     var model_scene: PackedScene = options[rng.randi_range(0, options.size() - 1)]
     var node: ResourceNode = RESOURCE_SCRIPT.new()
     node.resource_type = kind
+    node.resource_id = "%s_%d_%d_%d" % [kind, roundi(pos.x * 10.0), roundi(pos.y * 10.0), roundi(pos.z * 10.0)]
     node.amount = 4 if kind == "Madera" else 3
     node.model_scene = model_scene
     node.position = pos

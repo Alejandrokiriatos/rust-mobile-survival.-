@@ -22,7 +22,7 @@ download_material() {
   test -s "$DEST/${asset}_Color.jpg"
 }
 
-download_material "Grass005"
+download_material "Ground053"
 download_material "Ground067"
 download_material "Ground090"
 download_material "Rock063"
