@@ -17,3 +17,6 @@ Model files mirrored from the public Kenney CC0 asset tree:
 https://github.com/shorepine/kenney/tree/main/3d/survival
 The models and texture may be used in personal and commercial projects without attribution.
 EOF
+
+# Texturas PBR de terreno CC0 de ambientCG (resolución 1K para Android).
+bash tools/download_terrain_textures.sh
