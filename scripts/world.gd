@@ -53,7 +53,8 @@ func _ready() -> void:
     _spawn_wildlife()
     _load_game()
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+    _update_day_night(delta)
     if not is_instance_valid(player):
         return
     if is_instance_valid(health_bar):
@@ -933,6 +934,7 @@ func _scatter_resources() -> void:
             if y < WATER_LEVEL + 1.0:
                 continue
             _create_resource(Vector3(x, y, z), kind)
+            created += 1
 
 func _create_resource(pos: Vector3, kind: String) -> void:
     var options: Array = asset_scenes[kind]
