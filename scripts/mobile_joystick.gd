@@ -1,10 +1,10 @@
 extends Control
 class_name MobileJoystick
 
-@export_range(40.0, 120.0, 1.0) var radius := 66.0
+@export_range(40.0, 120.0, 1.0) var radius := 62.0
 @export_range(0.0, 0.4, 0.01) var deadzone := 0.12
-@export var base_color := Color(0.04, 0.09, 0.07, 0.48)
-@export var knob_color := Color(0.72, 0.88, 0.72, 0.72)
+@export var base_color := Color(0.025, 0.045, 0.04, 0.62)
+@export var knob_color := Color(0.78, 0.86, 0.70, 0.92)
 
 var input_vector := Vector2.ZERO
 var _finger_index := -1
@@ -60,7 +60,10 @@ func _release_stick() -> void:
     queue_redraw()
 
 func _draw() -> void:
+    # Doble aro y centro de alto contraste para distinguir el área táctil del escenario.
+    draw_circle(_center, radius + 7.0, Color(0.015, 0.025, 0.02, 0.30))
     draw_circle(_center, radius, base_color)
-    draw_arc(_center, radius, 0.0, TAU, 48, Color(0.82, 0.92, 0.82, 0.52), 3.0, true)
-    draw_circle(_center + _knob_offset, radius * 0.39, knob_color)
-    draw_arc(_center + _knob_offset, radius * 0.39, 0.0, TAU, 36, Color(1, 1, 1, 0.45), 2.0, true)
+    draw_arc(_center, radius, 0.0, TAU, 64, Color(0.78, 0.86, 0.74, 0.78), 3.0, true)
+    draw_arc(_center, radius * 0.68, 0.0, TAU, 48, Color(0.75, 0.84, 0.72, 0.24), 1.5, true)
+    draw_circle(_center + _knob_offset, radius * 0.36, knob_color)
+    draw_arc(_center + _knob_offset, radius * 0.36, 0.0, TAU, 48, Color(1.0, 1.0, 0.94, 0.86), 2.0, true)
