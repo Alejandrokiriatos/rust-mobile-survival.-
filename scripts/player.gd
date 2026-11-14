@@ -13,6 +13,7 @@ var look_finger := -1
 var camera: Camera3D
 var joystick: MobileJoystick
 var sprinting := false
+var axe_unlocked := false
 var inventory := {"Madera": 0, "Piedra": 0, "Fibra": 0}
 var health := 100.0
 var hunger := 100.0
@@ -39,6 +40,20 @@ func _ready() -> void:
 
 func set_sprinting(enabled: bool) -> void:
     sprinting = enabled
+
+func mobile_action(action: String, pressed: bool) -> void:
+    if InputMap.has_action(action):
+        if pressed:
+            Input.action_press(action)
+        else:
+            Input.action_release(action)
+
+func take_damage(amount: float) -> void:
+    health = maxf(0.0, health - amount)
+
+func restore_needs(food: float, water: float) -> void:
+    hunger = minf(100.0, hunger + food)
+    thirst = minf(100.0, thirst + water)
 
 func _unhandled_input(event: InputEvent) -> void:
     var viewport_size := get_viewport().get_visible_rect().size
@@ -79,8 +94,10 @@ func _physics_process(delta: float) -> void:
     velocity.z = move_toward(velocity.z, target_velocity.z, acceleration * delta)
     move_and_slide()
 
-    hunger = maxf(0.0, hunger - delta * 0.025)
-    thirst = maxf(0.0, thirst - delta * 0.04)
+    hunger = maxf(0.0, hunger - delta * 0.018)
+    thirst = maxf(0.0, thirst - delta * 0.032)
+    if hunger <= 0.0 or thirst <= 0.0:
+        take_damage(delta * (1.0 if hunger <= 0.0 and thirst <= 0.0 else 0.45))
 
 func collect(item: String, amount: int = 1) -> void:
     inventory[item] = int(inventory.get(item, 0)) + amount
