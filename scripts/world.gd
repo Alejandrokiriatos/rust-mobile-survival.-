@@ -14,6 +14,7 @@ var player: SurvivalPlayer
 var hud: Label
 var message: Label
 var interact_button: Button
+var control_layer: CanvasLayer
 var terrain_noise := FastNoiseLite.new()
 var detail_noise := FastNoiseLite.new()
 var asset_scenes: Dictionary = {}
@@ -80,21 +81,28 @@ func _make_environment() -> void:
     e.ambient_light_color = Color(0.72, 0.79, 0.9)
     e.ambient_light_energy = 0.75
     e.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+    e.fog_enabled = true
+    e.fog_light_color = Color(0.58, 0.72, 0.78)
+    e.fog_density = 0.0018
     env.environment = e
     add_child(env)
     var sun := DirectionalLight3D.new()
     sun.rotation_degrees = Vector3(-48, -32, 0)
     sun.light_energy = 1.0
     sun.shadow_enabled = true
+    sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
+    sun.directional_shadow_max_distance = 55.0
     sun.directional_shadow_max_distance = 75.0
     add_child(sun)
 
 func _height_at(x: float, z: float) -> float:
     var edge := maxf(absf(x), absf(z)) / (WORLD_SIZE * 0.49)
     var land_shape := pow(clampf(1.0 - edge, 0.0, 1.0), 1.55)
-    var broad := terrain_noise.get_noise_2d(x, z) * 9.0
-    var detail := detail_noise.get_noise_2d(x, z) * 1.4
-    return broad + detail + land_shape * 18.0 - 4.0
+    var broad := terrain_noise.get_noise_2d(x, z) * 4.2
+    var detail := detail_noise.get_noise_2d(x, z) * 0.55
+    var base_height := broad + detail + land_shape * 12.0 - 3.0
+    var spawn_blend := smoothstep(0.0, 28.0, Vector2(x, z).length())
+    return lerpf(3.0, base_height, spawn_blend)
 
 func _make_large_terrain() -> void:
     var terrain_material := StandardMaterial3D.new()
@@ -127,11 +135,11 @@ func _make_terrain_chunk(chunk_x: int, chunk_z: int, material: StandardMaterial3
             if h < WATER_LEVEL + 1.2:
                 tint = Color(0.67, 0.59, 0.39)
             elif h > 11.0:
-                tint = Color(0.43, 0.46, 0.39)
+                tint = Color(0.34, 0.48, 0.30)
             elif edge_distance > 0.78:
                 tint = Color(0.68, 0.62, 0.42)
             else:
-                tint = Color(0.30, 0.48, 0.25)
+                tint = Color(0.25, 0.43, 0.20)
             colors.append(tint)
     var row := CHUNK_SEGMENTS + 1
     for z in range(CHUNK_SEGMENTS):
@@ -176,38 +184,94 @@ func _make_water() -> void:
 
 func _make_player() -> void:
     player = SurvivalPlayer.new()
-    player.position = Vector3(0.0, _height_at(0.0, 0.0) + 2.5, 0.0)
+    player.position = Vector3(0.0, _height_at(0.0, 0.0) + 1.2, 0.0)
     add_child(player)
 
 func _make_hud() -> void:
-    var layer := CanvasLayer.new()
-    add_child(layer)
+    control_layer = CanvasLayer.new()
+    add_child(control_layer)
+
+    var hud_panel := Panel.new()
+    hud_panel.position = Vector2(12, 10)
+    hud_panel.size = Vector2(350, 92)
+    var panel_style := StyleBoxFlat.new()
+    panel_style.bg_color = Color(0.035, 0.07, 0.055, 0.78)
+    panel_style.set_corner_radius_all(12)
+    panel_style.set_content_margin_all(10)
+    hud_panel.add_theme_stylebox_override("panel", panel_style)
+    control_layer.add_child(hud_panel)
+
     hud = Label.new()
-    hud.position = Vector2(18, 14)
-    hud.add_theme_font_size_override("font_size", 18)
-    hud.add_theme_color_override("font_color", Color.WHITE)
-    layer.add_child(hud)
+    hud.position = Vector2(22, 18)
+    hud.add_theme_font_size_override("font_size", 17)
+    hud.add_theme_color_override("font_color", Color(0.95, 0.98, 0.91))
+    hud_panel.add_child(hud)
+
     message = Label.new()
-    message.position = Vector2(18, 70)
-    message.add_theme_font_size_override("font_size", 17)
-    message.add_theme_color_override("font_color", Color(1.0, 0.9, 0.55))
-    layer.add_child(message)
-    var asset_status := Label.new()
-    asset_status.position = Vector2(18, 108)
-    asset_status.add_theme_font_size_override("font_size", 14)
-    asset_status.add_theme_color_override("font_color", Color(0.9, 0.95, 1.0))
-    asset_status.text = "Kenney Nature Kit: %s" % ("OK" if _has_all_resource_models() else "FALTA INSTALAR")
-    layer.add_child(asset_status)
+    message.position = Vector2(18, 112)
+    message.add_theme_font_size_override("font_size", 16)
+    message.add_theme_color_override("font_color", Color(1.0, 0.91, 0.58))
+    control_layer.add_child(message)
+
+    _add_hold_button("▲", Vector2(78, -166), "move_forward")
+    _add_hold_button("◀", Vector2(20, -110), "move_left")
+    _add_hold_button("▼", Vector2(78, -54), "move_back")
+    _add_hold_button("▶", Vector2(136, -110), "move_right")
+    _add_hold_button("SALTAR", Vector2(-158, -166), "jump", true)
+
     interact_button = Button.new()
     interact_button.text = "RECOGER"
-    interact_button.size = Vector2(130, 58)
+    interact_button.size = Vector2(138, 58)
     interact_button.anchor_left = 1.0
     interact_button.anchor_right = 1.0
     interact_button.anchor_top = 1.0
     interact_button.anchor_bottom = 1.0
-    interact_button.position = Vector2(-155, -95)
+    interact_button.position = Vector2(-158, -92)
+    interact_button.add_theme_font_size_override("font_size", 17)
+    _style_action_button(interact_button)
     interact_button.pressed.connect(_try_harvest)
-    layer.add_child(interact_button)
+    control_layer.add_child(interact_button)
+
+    var look_hint := Label.new()
+    look_hint.text = "DESLIZA AQUÍ PARA MIRAR"
+    look_hint.anchor_left = 1.0
+    look_hint.anchor_right = 1.0
+    look_hint.anchor_top = 1.0
+    look_hint.anchor_bottom = 1.0
+    look_hint.position = Vector2(-300, -34)
+    look_hint.size = Vector2(285, 24)
+    look_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+    look_hint.add_theme_font_size_override("font_size", 12)
+    look_hint.add_theme_color_override("font_color", Color(1, 1, 1, 0.55))
+    control_layer.add_child(look_hint)
+
+func _add_hold_button(label_text: String, offset: Vector2, action: String, wide: bool = false) -> void:
+    var button := Button.new()
+    button.text = label_text
+    button.size = Vector2(58, 54) if not wide else Vector2(138, 54)
+    button.anchor_left = 0.0 if offset.x >= 0.0 else 1.0
+    button.anchor_right = button.anchor_left
+    button.anchor_top = 1.0
+    button.anchor_bottom = 1.0
+    button.position = offset
+    button.add_theme_font_size_override("font_size", 17 if wide else 25)
+    _style_action_button(button)
+    button.button_down.connect(player.set_mobile_action.bind(action, true))
+    button.button_up.connect(player.set_mobile_action.bind(action, false))
+    control_layer.add_child(button)
+
+func _style_action_button(button: Button) -> void:
+    var normal := StyleBoxFlat.new()
+    normal.bg_color = Color(0.035, 0.075, 0.065, 0.76)
+    normal.border_color = Color(0.72, 0.86, 0.72, 0.85)
+    normal.set_border_width_all(2)
+    normal.set_corner_radius_all(13)
+    button.add_theme_stylebox_override("normal", normal)
+    var pressed := normal.duplicate() as StyleBoxFlat
+    pressed.bg_color = Color(0.18, 0.36, 0.25, 0.94)
+    button.add_theme_stylebox_override("pressed", pressed)
+    button.add_theme_color_override("font_color", Color.WHITE)
+    button.add_theme_color_override("font_pressed_color", Color(1.0, 0.92, 0.62))
 
 func _has_all_resource_models() -> bool:
     for kind in ["Madera", "Piedra", "Fibra"]:
