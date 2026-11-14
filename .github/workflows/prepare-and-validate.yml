@@ -21,19 +21,24 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          PACK_URL="https://kenney.nl/media/pages/assets/nature-kit/37ac38a37b-1677698939/kenney_nature-kit.zip"
-          mkdir -p /tmp/kenney-nature assets/kenney/nature-kit
-          curl -L --fail --retry 3 "$PACK_URL" -o /tmp/kenney-nature-kit.zip
-          unzip -q /tmp/kenney-nature-kit.zip -d /tmp/kenney-nature
-          MODEL_DIR="$(find /tmp/kenney-nature -type d -path '*/Models/GLTF format' -print -quit)"
-          test -n "$MODEL_DIR"
-          for model in tree_default.glb tree_oak.glb rock_largeA.glb rock_smallA.glb plant_bush.glb plant_bushLarge.glb; do
-            test -f "$MODEL_DIR/$model"
-            cp "$MODEL_DIR/$model" assets/kenney/nature-kit/
+          SOURCE_COMMIT="1a152705775266732aa24362ad0351c571b201f0"
+          git init /tmp/kenney-source
+          git -C /tmp/kenney-source remote add origin https://github.com/milnet01/Vestige.git
+          git -C /tmp/kenney-source fetch --depth 1 origin "$SOURCE_COMMIT"
+          git -C /tmp/kenney-source checkout --detach FETCH_HEAD
+          mkdir -p assets/kenney/nature-kit
+          for model in tree_default.glb tree_oak.glb rock_largeA.glb rock_smallA.glb plant_bush.glb grass.glb; do
+            test -f "/tmp/kenney-source/assets/models/nature/$model"
+            cp "/tmp/kenney-source/assets/models/nature/$model" assets/kenney/nature-kit/
           done
-          LICENSE_FILE="$(find /tmp/kenney-nature -iname 'License.txt' -type f -print -quit)"
-          test -n "$LICENSE_FILE"
-          cp "$LICENSE_FILE" assets/kenney/nature-kit/License.txt
+          cat > assets/kenney/nature-kit/License.txt <<'EOF'
+          Kenney Nature Kit 2.1
+          License: CC0 1.0 Universal (public domain dedication).
+          Source: https://kenney.nl/assets/nature-kit
+          The curated source repository identifies these models as Kenney Nature Kit 2.1, CC0 1.0:
+          https://github.com/milnet01/Vestige/blob/main/ASSET_LICENSES.md
+          Attribution is not required. Courtesy credit: Kenney.nl.
+          EOF
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add assets/kenney/nature-kit/*.glb assets/kenney/nature-kit/License.txt
