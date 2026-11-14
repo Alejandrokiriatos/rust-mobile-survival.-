@@ -1,7 +1,9 @@
-Kenney Nature Kit (CC0 1.0)
+Kenney Nature Kit 2.1 — CC0 1.0
 Fuente oficial: https://kenney.nl/assets/nature-kit
 
-Descarga el ZIP oficial, descomprímelo y copia todos los archivos de "Models/GLTF format/" aquí.
-Mantén este archivo License.txt original dentro de esta carpeta.
-Modelos que el juego utiliza: tree_default.glb, tree_oak.glb, rock_largeA.glb,
-rock_smallA.glb, plant_bush.glb y plant_bushLarge.glb.
+Estos seis modelos GLB originales ya están incluidos en esta carpeta:
+tree_default.glb, tree_oak.glb, rock_largeA.glb, rock_smallA.glb,
+plant_bush.glb y grass.glb.
+
+La licencia CC0 1.0 permite uso, modificación y redistribución. No exige
+atribución. La procedencia está documentada en License.txt.
