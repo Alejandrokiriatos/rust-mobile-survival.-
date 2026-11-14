@@ -57,13 +57,20 @@ jobs:
             exit 1
           fi
           cp "$SOURCE" artifacts/rust-mobile-survival-preview.png
-          file artifacts/rust-mobile-survival-preview.png
+          MAP_SOURCE="$HOME/.local/share/godot/app_userdata/Rust Mobile Survival/capture/rust-mobile-survival-map.png"
+          if [ ! -s "$MAP_SOURCE" ]; then
+            echo "No se encontró la vista general del mapa: $MAP_SOURCE"
+            exit 1
+          fi
+          cp "$MAP_SOURCE" artifacts/rust-mobile-survival-map.png
+          file artifacts/*.png
           test "$(stat -c%s artifacts/rust-mobile-survival-preview.png)" -gt 10000
+          test "$(stat -c%s artifacts/rust-mobile-survival-map.png)" -gt 10000
 
       - name: Publicar captura como artefacto
         uses: actions/upload-artifact@v4
         with:
           name: Rust-Mobile-Survival-Visual-Preview
-          path: artifacts/rust-mobile-survival-preview.png
+          path: artifacts/*.png
           if-no-files-found: error
           retention-days: 14
