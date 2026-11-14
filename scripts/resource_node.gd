@@ -13,7 +13,7 @@ func _ready() -> void:
     if model_scene == null:
         push_warning("ResourceNode sin modelo 3D asignado.")
         return
-    var visual := model_scene.instantiate()
+    var visual := model_scene.instantiate() as Node3D
     visual.scale = model_scale
     add_child(visual)
     var collision := CollisionShape3D.new()
