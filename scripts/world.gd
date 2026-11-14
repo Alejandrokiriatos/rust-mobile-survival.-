@@ -131,7 +131,7 @@ func _process(delta: float) -> void:
     if is_instance_valid(minimap_coords):
         minimap_coords.text = "X %d  Z %d" % [roundi(player.global_position.x), roundi(player.global_position.z)]
     if is_instance_valid(inventory_summary):
-        inventory_summary.text = "Madera %d | Piedra %d | Fibra %d | Comida %d | Agua %d" % [player.inventory["Madera"], player.inventory["Piedra"], player.inventory["Fibra"], player.inventory["Comida"], player.inventory["Agua"]]
+        inventory_summary.text = "MADERA     %03d\nPIEDRA       %03d\nFIBRA          %03d\nCOMIDA      %03d\nAGUA           %03d" % [player.inventory["Madera"], player.inventory["Piedra"], player.inventory["Fibra"], player.inventory["Comida"], player.inventory["Agua"]]
     if is_instance_valid(day_label):
         day_label.text = "%s · DÍA %d" % [_time_of_day_name(), int(day_clock) + 1]
 func _configure_noise() -> void:
@@ -788,18 +788,22 @@ func _make_inventory_panel() -> void:
     inventory_panel.anchor_right = 0.5
     inventory_panel.anchor_top = 0.5
     inventory_panel.anchor_bottom = 0.5
-    inventory_panel.position = Vector2(-140, -90)
-    inventory_panel.custom_minimum_size = Vector2(280, 180)
+    inventory_panel.position = Vector2(-132, -142)
+    inventory_panel.custom_minimum_size = Vector2(264, 284)
     inventory_panel.visible = false
     _style_action_panel(inventory_panel)
     var column := VBoxContainer.new()
     inventory_panel.add_child(column)
     var title := Label.new()
-    title.text = "MOCHILA"
+    title.text = "MOCHILA  /  RECURSOS"
     title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    title.add_theme_font_size_override("font_size", 16)
+    title.add_theme_color_override("font_color", Color(0.91, 0.94, 0.84))
     column.add_child(title)
     inventory_summary = Label.new()
-    inventory_summary.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    inventory_summary.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+    inventory_summary.add_theme_font_size_override("font_size", 15)
+    inventory_summary.add_theme_color_override("font_color", Color(0.95, 0.93, 0.83))
     column.add_child(inventory_summary)
     var close := Button.new()
     close.text = "CERRAR"
