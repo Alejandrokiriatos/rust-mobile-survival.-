@@ -23,6 +23,9 @@ jobs:
       - name: Descargar proyecto
         uses: actions/checkout@v4
 
+      - name: Descargar modelos 3D CC0 de supervivencia
+        run: bash tools/download_survival_models.sh
+
       - name: Instalar dependencias gráficas
         run: |
           sudo apt-get update
