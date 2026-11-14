@@ -255,10 +255,21 @@ func _make_terrain_chunk(chunk_x: int, chunk_z: int, material: StandardMaterial3
     terrain.mesh = mesh
     terrain.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
     add_child(terrain)
+    # Colisión de altura dedicada: evita que el jugador atraviese la malla visual
+    # y es más eficiente que un trimesh cóncavo para un terreno regular.
+    var heightmap := HeightMapShape3D.new()
+    heightmap.map_width = int(CHUNK_SIZE) + 1
+    heightmap.map_depth = int(CHUNK_SIZE) + 1
+    var height_data := PackedFloat32Array()
+    for collision_z in range(int(CHUNK_SIZE) + 1):
+        for collision_x in range(int(CHUNK_SIZE) + 1):
+            height_data.append(_height_at(origin_x + float(collision_x), origin_z + float(collision_z)))
+    heightmap.map_data = height_data
     var body := StaticBody3D.new()
     body.name = "TerrainCollision_%02d_%02d" % [chunk_x, chunk_z]
+    body.position = Vector3(origin_x + CHUNK_SIZE * 0.5, 0.0, origin_z + CHUNK_SIZE * 0.5)
     var collision := CollisionShape3D.new()
-    collision.shape = mesh.create_trimesh_shape()
+    collision.shape = heightmap
     body.add_child(collision)
     add_child(body)
 
