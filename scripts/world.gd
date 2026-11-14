@@ -458,17 +458,40 @@ func _drink() -> void:
         message.text = "Acércate a la costa para beber."
 
 func _spawn_wildlife() -> void:
-    for i in range(7):
-        var x := rng.randf_range(-WORLD_SIZE * 0.38, WORLD_SIZE * 0.38)
-        var z := rng.randf_range(-WORLD_SIZE * 0.38, WORLD_SIZE * 0.38)
-        if Vector2(x, z).length() < 45.0:
-            x += 70.0
-        var y := _height_at(x, z)
-        if y <= WATER_LEVEL + 1.0:
-            continue
-        var animal: WildAnimal = ANIMAL_SCRIPT.new()
-        animal.position = Vector3(x, y + 0.15, z)
-        add_child(animal)
+    # Repartimos especies para que el bosque tenga fauna variada.
+    var species_data: Array[Dictionary] = [
+        {"species": "Deer", "file": "Deer.gltf", "predator": false, "speed": 2.6, "scale": 1.0},
+        {"species": "Stag", "file": "Stag.gltf", "predator": false, "speed": 2.8, "scale": 1.05},
+        {"species": "Fox", "file": "Fox.gltf", "predator": false, "speed": 3.1, "scale": 0.85},
+        {"species": "Wolf", "file": "Wolf.gltf", "predator": true, "speed": 3.0, "scale": 0.95},
+        {"species": "Husky", "file": "Husky.gltf", "predator": false, "speed": 2.8, "scale": 0.9},
+        {"species": "ShibaInu", "file": "ShibaInu.gltf", "predator": false, "speed": 2.6, "scale": 0.8},
+        {"species": "Cow", "file": "Cow.gltf", "predator": false, "speed": 1.8, "scale": 1.0},
+        {"species": "Bull", "file": "Bull.gltf", "predator": false, "speed": 2.0, "scale": 1.05},
+        {"species": "Horse", "file": "Horse.gltf", "predator": false, "speed": 3.2, "scale": 1.0},
+        {"species": "Horse_White", "file": "Horse_White.gltf", "predator": false, "speed": 3.2, "scale": 1.0},
+        {"species": "Alpaca", "file": "Alpaca.gltf", "predator": false, "speed": 2.0, "scale": 0.9},
+        {"species": "Donkey", "file": "Donkey.gltf", "predator": false, "speed": 2.0, "scale": 0.9}
+    ]
+    for data in species_data:
+        var placed := false
+        for attempt in range(18):
+            var angle := rng.randf_range(0.0, TAU)
+            var radius := rng.randf_range(58.0, WORLD_SIZE * 0.34)
+            var x := cos(angle) * radius
+            var z := sin(angle) * radius
+            var y := _height_at(x, z)
+            if y <= WATER_LEVEL + 1.0:
+                continue
+            var animal: WildAnimal = ANIMAL_SCRIPT.new()
+            data["path"] = "res://assets/quaternius/ultimate-animated-animals/" + str(data["file"])
+            animal.configure(data)
+            animal.position = Vector3(x, y + 0.12, z)
+            add_child(animal)
+            placed = true
+            break
+        if not placed:
+            push_warning("No se pudo colocar " + str(data["species"]) + " en terreno seco.")
 
 func _update_day_night(delta: float) -> void:
     day_clock += delta / 900.0
