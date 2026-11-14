@@ -33,7 +33,10 @@ func _ready() -> void:
     camera = Camera3D.new()
     camera.position = Vector3(0, 1.58, 0)
     camera.fov = 76.0
-    camera.far = 190.0
+    camera.far = 260.0
+    # Ángulo inicial ligeramente hacia el suelo: muestra el relieve y la vegetación
+    # desde el primer fotograma, sin obligar al jugador a mover la cámara.
+    camera.rotation.x = deg_to_rad(-9.0)
     camera.current = true
     add_child(camera)
     floor_snap_length = 0.35
