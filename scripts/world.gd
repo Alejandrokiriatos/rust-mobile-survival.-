@@ -526,6 +526,20 @@ func _load_game() -> void:
     for entry in structures:
         _place_buildable(str(entry.get("kind", "Refugio")), entry.get("position", Vector3.ZERO))
 
+func _style_action_button(button: Button) -> void:
+    var normal := StyleBoxFlat.new()
+    normal.bg_color = Color(0.035, 0.075, 0.065, 0.82)
+    normal.border_color = Color(0.72, 0.86, 0.72, 0.88)
+    normal.set_border_width_all(2)
+    normal.set_corner_radius_all(11)
+    normal.set_content_margin_all(5)
+    button.add_theme_stylebox_override("normal", normal)
+    var pressed := normal.duplicate() as StyleBoxFlat
+    pressed.bg_color = Color(0.18, 0.36, 0.25, 0.96)
+    button.add_theme_stylebox_override("pressed", pressed)
+    button.add_theme_color_override("font_color", Color.WHITE)
+    button.add_theme_color_override("font_pressed_color", Color(1.0, 0.92, 0.62))
+
 func _has_all_resource_models() -> bool:
     for kind in ["Madera", "Piedra", "Fibra"]:
         if asset_scenes.get(kind, []).is_empty():
