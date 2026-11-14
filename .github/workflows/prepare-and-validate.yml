@@ -59,9 +59,19 @@ jobs:
           echo "GODOT_BIN=/tmp/godot/Godot_v4.4.1-stable_linux.x86_64" >> "$GITHUB_ENV"
 
       - name: Importar recursos y validar scripts
+        shell: bash
         run: |
-          "$GODOT_BIN" --headless --editor --path . --import --quit
+          set -euo pipefail
+          "$GODOT_BIN" --headless --editor --path . --import --quit 2>&1 | tee /tmp/godot-import.log
+          if grep -E "SCRIPT ERROR|Parse Error|Failed to load script" /tmp/godot-import.log; then
+            exit 1
+          fi
 
       - name: Ejecutar escena principal en modo headless
+        shell: bash
         run: |
-          "$GODOT_BIN" --headless --path . --quit-after 5
+          set -euo pipefail
+          "$GODOT_BIN" --headless --path . --quit-after 5 2>&1 | tee /tmp/godot-run.log
+          if grep -E "SCRIPT ERROR|Parse Error|Failed to load script" /tmp/godot-run.log; then
+            exit 1
+          fi
