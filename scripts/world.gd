@@ -29,6 +29,14 @@ var world_environment: Environment
 var day_clock := 0.22
 var craft_panel: PanelContainer
 var day_label: Label
+var health_bar: ProgressBar
+var hunger_bar: ProgressBar
+var thirst_bar: ProgressBar
+var stamina_bar: ProgressBar
+var compass_label: Label
+var minimap_coords: Label
+var inventory_panel: PanelContainer
+var inventory_summary: Label
 
 func _ready() -> void:
     rng.randomize()
@@ -243,86 +251,189 @@ func _make_player() -> void:
 
 func _make_hud() -> void:
     control_layer = CanvasLayer.new()
+    control_layer.layer = 10
     add_child(control_layer)
-
-    var hud_panel := Panel.new()
-    hud_panel.position = Vector2(12, 10)
-    hud_panel.size = Vector2(370, 112)
-    var panel_style := StyleBoxFlat.new()
-    panel_style.bg_color = Color(0.025, 0.055, 0.045, 0.78)
-    panel_style.set_corner_radius_all(12)
-    panel_style.set_content_margin_all(10)
-    hud_panel.add_theme_stylebox_override("panel", panel_style)
-    control_layer.add_child(hud_panel)
-
-    hud = Label.new()
-    hud.position = Vector2(12, 8)
-    hud.size = Vector2(346, 96)
-    hud.add_theme_font_size_override("font_size", 15)
-    hud.add_theme_color_override("font_color", Color(0.95, 0.98, 0.91))
-    hud_panel.add_child(hud)
-
+    var panel := PanelContainer.new()
+    panel.position = Vector2(12, 10)
+    panel.custom_minimum_size = Vector2(230, 138)
+    _style_action_panel(panel)
+    control_layer.add_child(panel)
+    var stack := VBoxContainer.new()
+    panel.add_child(stack)
+    var title := Label.new()
+    title.text = "RUST MOBILE SURVIVAL  v0.3.0"
+    title.add_theme_font_size_override("font_size", 12)
+    stack.add_child(title)
+    health_bar = _make_bar(stack, "VIDA", Color(0.82, 0.16, 0.13))
+    hunger_bar = _make_bar(stack, "HAMBRE", Color(0.85, 0.52, 0.12))
+    thirst_bar = _make_bar(stack, "SED", Color(0.12, 0.48, 0.82))
+    stamina_bar = _make_bar(stack, "ENERGÍA", Color(0.2, 0.68, 0.32))
     day_label = Label.new()
-    day_label.position = Vector2(18, 128)
-    day_label.add_theme_font_size_override("font_size", 14)
-    day_label.add_theme_color_override("font_color", Color(0.93, 0.91, 0.72))
+    day_label.position = Vector2(14, 154)
     control_layer.add_child(day_label)
-
-    message = Label.new()
-    message.position = Vector2(18, 154)
-    message.size = Vector2(420, 34)
-    message.add_theme_font_size_override("font_size", 15)
-    message.add_theme_color_override("font_color", Color(1.0, 0.91, 0.58))
-    control_layer.add_child(message)
-
+    compass_label = Label.new()
+    compass_label.anchor_left = 0.5
+    compass_label.anchor_right = 0.5
+    compass_label.position = Vector2(-80, 12)
+    compass_label.add_theme_font_size_override("font_size", 17)
+    control_layer.add_child(compass_label)
+    var map := PanelContainer.new()
+    map.anchor_left = 1.0
+    map.anchor_right = 1.0
+    map.position = Vector2(-158, 12)
+    map.custom_minimum_size = Vector2(146, 130)
+    _style_action_panel(map)
+    control_layer.add_child(map)
+    var map_col := VBoxContainer.new()
+    map.add_child(map_col)
+    var map_title := Label.new()
+    map_title.text = "MINIMAPA"
+    map_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    map_col.add_child(map_title)
+    var map_view := ColorRect.new()
+    map_view.custom_minimum_size = Vector2(126, 82)
+    map_view.color = Color(0.16, 0.25, 0.16)
+    map_col.add_child(map_view)
+    var marker := Label.new()
+    marker.text = "▲"
+    marker.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    marker.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+    marker.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+    map_view.add_child(marker)
+    minimap_coords = Label.new()
+    minimap_coords.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    map_col.add_child(minimap_coords)
     mobile_joystick = JOYSTICK_SCRIPT.new()
     mobile_joystick.anchor_left = 0.0
     mobile_joystick.anchor_right = 0.0
     mobile_joystick.anchor_top = 1.0
     mobile_joystick.anchor_bottom = 1.0
-    mobile_joystick.position = Vector2(22, -178)
+    mobile_joystick.position = Vector2(24, -184)
     control_layer.add_child(mobile_joystick)
     player.joystick = mobile_joystick
-
-    _add_hold_button("SALTAR", Vector2(-154, -92), "jump", true)
+    _add_hold_button("SALTO", Vector2(-104, -246), "jump")
     _add_sprint_button()
-
+    _add_crouch_button()
     interact_button = Button.new()
-    interact_button.text = "RECOGER"
-    interact_button.size = Vector2(138, 48)
+    interact_button.text = "ATACAR"
+    interact_button.size = Vector2(88, 58)
     interact_button.anchor_left = 1.0
     interact_button.anchor_right = 1.0
     interact_button.anchor_top = 1.0
     interact_button.anchor_bottom = 1.0
-    interact_button.position = Vector2(-154, -218)
-    interact_button.add_theme_font_size_override("font_size", 15)
+    interact_button.position = Vector2(-104, -154)
     _style_action_button(interact_button)
     interact_button.pressed.connect(_try_harvest)
     control_layer.add_child(interact_button)
-
-    var craft_toggle := Button.new()
-    craft_toggle.text = "FABRICAR"
-    craft_toggle.size = Vector2(138, 42)
-    craft_toggle.anchor_left = 1.0
-    craft_toggle.anchor_right = 1.0
-    craft_toggle.position = Vector2(-154, 12)
-    _style_action_button(craft_toggle)
-    craft_toggle.pressed.connect(_toggle_craft_panel)
-    control_layer.add_child(craft_toggle)
-
-    var save_button := Button.new()
-    save_button.text = "GUARDAR"
-    save_button.size = Vector2(112, 36)
-    save_button.anchor_left = 1.0
-    save_button.anchor_right = 1.0
-    save_button.position = Vector2(-128, 60)
-    save_button.add_theme_font_size_override("font_size", 13)
-    _style_action_button(save_button)
-    save_button.pressed.connect(_save_game)
-    control_layer.add_child(save_button)
-
+    var bag := Button.new()
+    bag.text = "MOCHILA"
+    bag.size = Vector2(88, 42)
+    bag.anchor_left = 1.0
+    bag.anchor_right = 1.0
+    bag.anchor_top = 1.0
+    bag.anchor_bottom = 1.0
+    bag.position = Vector2(-104, -88)
+    _style_action_button(bag)
+    bag.pressed.connect(_toggle_inventory_panel)
+    control_layer.add_child(bag)
+    var craft := Button.new()
+    craft.text = "FABRICAR"
+    craft.size = Vector2(88, 42)
+    craft.anchor_left = 1.0
+    craft.anchor_right = 1.0
+    craft.anchor_top = 1.0
+    craft.anchor_bottom = 1.0
+    craft.position = Vector2(-198, -88)
+    _style_action_button(craft)
+    craft.pressed.connect(_toggle_craft_panel)
+    control_layer.add_child(craft)
+    var hotbar := HBoxContainer.new()
+    hotbar.anchor_left = 0.5
+    hotbar.anchor_right = 0.5
+    hotbar.anchor_top = 1.0
+    hotbar.anchor_bottom = 1.0
+    hotbar.position = Vector2(-180, -72)
+    control_layer.add_child(hotbar)
+    for i in range(5):
+        var slot := Button.new()
+        slot.text = ["HACHA", "PICO", "ARCO", "FUEGO", "OBJETO"][i]
+        slot.custom_minimum_size = Vector2(68, 54)
+        slot.add_theme_font_size_override("font_size", 10)
+        _style_action_button(slot)
+        hotbar.add_child(slot)
     _make_craft_panel()
+    _make_inventory_panel()
 
+func _make_bar(parent: VBoxContainer, caption: String, tint: Color) -> ProgressBar:
+    var row := HBoxContainer.new()
+    parent.add_child(row)
+    var label := Label.new()
+    label.text = caption
+    label.custom_minimum_size = Vector2(60, 0)
+    label.add_theme_font_size_override("font_size", 11)
+    row.add_child(label)
+    var bar := ProgressBar.new()
+    bar.min_value = 0
+    bar.max_value = 100
+    bar.value = 100
+    bar.show_percentage = true
+    bar.custom_minimum_size = Vector2(140, 17)
+    var fill := StyleBoxFlat.new()
+    fill.bg_color = tint
+    bar.add_theme_stylebox_override("fill", fill)
+    row.add_child(bar)
+    return bar
+
+func _style_action_panel(panel: Control) -> void:
+    var style := StyleBoxFlat.new()
+    style.bg_color = Color(0.02, 0.05, 0.04, 0.86)
+    style.border_color = Color(0.72, 0.84, 0.72, 0.55)
+    style.set_border_width_all(1)
+    style.set_corner_radius_all(9)
+    style.set_content_margin_all(6)
+    panel.add_theme_stylebox_override("panel", style)
+
+func _add_crouch_button() -> void:
+    var button := Button.new()
+    button.text = "AGACHAR"
+    button.size = Vector2(88, 42)
+    button.anchor_left = 1.0
+    button.anchor_right = 1.0
+    button.anchor_top = 1.0
+    button.anchor_bottom = 1.0
+    button.position = Vector2(-104, -326)
+    _style_action_button(button)
+    button.button_down.connect(player.set_crouching.bind(true))
+    button.button_up.connect(player.set_crouching.bind(false))
+    control_layer.add_child(button)
+
+func _make_inventory_panel() -> void:
+    inventory_panel = PanelContainer.new()
+    inventory_panel.anchor_left = 0.5
+    inventory_panel.anchor_right = 0.5
+    inventory_panel.anchor_top = 0.5
+    inventory_panel.anchor_bottom = 0.5
+    inventory_panel.position = Vector2(-140, -90)
+    inventory_panel.custom_minimum_size = Vector2(280, 180)
+    inventory_panel.visible = false
+    _style_action_panel(inventory_panel)
+    var column := VBoxContainer.new()
+    inventory_panel.add_child(column)
+    var title := Label.new()
+    title.text = "MOCHILA"
+    title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    column.add_child(title)
+    inventory_summary = Label.new()
+    inventory_summary.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    column.add_child(inventory_summary)
+    var close := Button.new()
+    close.text = "CERRAR"
+    close.pressed.connect(_toggle_inventory_panel)
+    column.add_child(close)
+    control_layer.add_child(inventory_panel)
+
+func _toggle_inventory_panel() -> void:
+    inventory_panel.visible = not inventory_panel.visible
 func _add_hold_button(label_text: String, offset: Vector2, action: String, wide: bool = false) -> void:
     var button := Button.new()
     button.text = label_text
