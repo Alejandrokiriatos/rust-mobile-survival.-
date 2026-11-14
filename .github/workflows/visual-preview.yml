@@ -10,6 +10,8 @@ on:
       - "scripts/**"
       - "assets/**"
       - "tools/capture_screenshot.gd"
+      - "tools/download_survival_models.sh"
+      - "tools/download_terrain_textures.sh"
       - ".github/workflows/visual-preview.yml"
 
 permissions:
