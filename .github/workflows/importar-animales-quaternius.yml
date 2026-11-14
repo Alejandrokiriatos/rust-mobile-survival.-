@@ -35,14 +35,14 @@ jobs:
           DEST=assets/quaternius/ultimate-animated-animals
           mkdir -p "$DEST"
 
-          GLTF_DIR="$(find "$SRC" -type d \\( -iname 'gltf' -o -iname 'glTF' \\) -print -quit || true)"
+          GLTF_DIR="$(find "$SRC" -type d \( -iname 'gltf' -o -iname 'glTF' \) -print -quit || true)"
           if [ -n "$GLTF_DIR" ]; then
             cp -a "$GLTF_DIR"/. "$DEST"/
           else
-            find "$SRC" -type f \\( -iname '*.glb' -o -iname '*.gltf' \\) -exec cp --parents '{}' "$DEST"/ \\;
+            find "$SRC" -type f \( -iname '*.glb' -o -iname '*.gltf' \) -exec cp --parents '{}' "$DEST"/ \;
           fi
 
-          find "$SRC" -type f \\( -iname 'license.txt' -o -iname 'license' -o -iname 'readme.txt' \\) -exec cp '{}' "$DEST"/ \\; || true
+          find "$SRC" -type f \( -iname 'license.txt' -o -iname 'license' -o -iname 'readme.txt' \) -exec cp '{}' "$DEST"/ \; || true
 
           COUNT="$(find "$DEST" -type f | wc -l)"
           test "$COUNT" -gt 0 || { echo "No se encontraron archivos glTF/GLB en el paquete."; exit 1; }
@@ -52,7 +52,7 @@ jobs:
           echo "Tamaño total: $TOTAL bytes"
           test "$TOTAL" -le 90000000 || { echo "El conjunto supera 90 MB; se cancela para no inflar el repositorio."; exit 1; }
 
-          find "$DEST" -type f -printf '%s %p\\n' | sort -n > "$DEST/ASSET_MANIFEST.txt"
+          find "$DEST" -type f -printf '%s %p\n' | sort -n > "$DEST/ASSET_MANIFEST.txt"
           echo "Importación de modelos glTF preparada."
 
       - name: Guardar modelos en el repositorio
