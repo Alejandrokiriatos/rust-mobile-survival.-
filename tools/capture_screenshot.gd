@@ -40,7 +40,7 @@ func _capture() -> void:
     player.global_position = Vector3(0.0, world._height_at(0.0, 0.0) + 0.4, 0.0)
     player.velocity = Vector3.ZERO
     player.rotation = Vector3.ZERO
-    player.camera.rotation = Vector3(deg_to_rad(-48.0), 0.0, 0.0)
+    player.camera.rotation = Vector3(deg_to_rad(-28.0), 0.0, 0.0)
     player.camera.current = true
     for i in range(18):
         await process_frame
