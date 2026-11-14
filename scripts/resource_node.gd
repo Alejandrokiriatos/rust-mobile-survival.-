@@ -19,20 +19,20 @@ func _ready() -> void:
     var collision := CollisionShape3D.new()
     if resource_type == "Madera":
         var capsule := CapsuleShape3D.new()
-        capsule.radius = 0.42
-        capsule.height = 2.8
+        capsule.radius = 0.48
+        capsule.height = 5.2
         collision.shape = capsule
-        collision.position.y = 1.35 * model_scale.y
+        collision.position.y = 2.6
     elif resource_type == "Piedra":
         var sphere := SphereShape3D.new()
-        sphere.radius = 0.85
+        sphere.radius = 1.15
         collision.shape = sphere
-        collision.position.y = 0.55 * model_scale.y
+        collision.position.y = 0.65
     else:
         var bush_shape := SphereShape3D.new()
-        bush_shape.radius = 0.7
+        bush_shape.radius = 1.15
         collision.shape = bush_shape
-        collision.position.y = 0.45 * model_scale.y
+        collision.position.y = 0.8
     add_child(collision)
 
 func harvest(player: SurvivalPlayer) -> String:
