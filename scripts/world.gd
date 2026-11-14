@@ -90,7 +90,7 @@ func _make_environment() -> void:
     add_child(sun)
 
 func _height_at(x: float, z: float) -> float:
-    var edge := Vector2(x, z).length() / (WORLD_SIZE * 0.49)
+    var edge := maxf(absf(x), absf(z)) / (WORLD_SIZE * 0.49)
     var land_shape := pow(clampf(1.0 - edge, 0.0, 1.0), 1.55)
     var broad := terrain_noise.get_noise_2d(x, z) * 9.0
     var detail := detail_noise.get_noise_2d(x, z) * 1.4
@@ -107,6 +107,7 @@ func _make_large_terrain() -> void:
 
 func _make_terrain_chunk(chunk_x: int, chunk_z: int, material: StandardMaterial3D) -> void:
     var vertices := PackedVector3Array()
+    var normals := PackedVector3Array()
     var colors := PackedColorArray()
     var indices := PackedInt32Array()
     var origin_x := -WORLD_SIZE * 0.5 + float(chunk_x) * CHUNK_SIZE
@@ -118,7 +119,10 @@ func _make_terrain_chunk(chunk_x: int, chunk_z: int, material: StandardMaterial3
             var pz := origin_z + float(z) * step
             var h := _height_at(px, pz)
             vertices.append(Vector3(px, h, pz))
-            var edge_distance := Vector2(px, pz).length() / (WORLD_SIZE * 0.49)
+            var slope_x := _height_at(px + step, pz) - _height_at(px - step, pz)
+            var slope_z := _height_at(px, pz + step) - _height_at(px, pz - step)
+            normals.append(Vector3(-slope_x, step * 2.0, -slope_z).normalized())
+            var edge_distance := maxf(absf(px), absf(pz)) / (WORLD_SIZE * 0.49)
             var tint: Color
             if h < WATER_LEVEL + 1.2:
                 tint = Color(0.67, 0.59, 0.39)
@@ -140,6 +144,7 @@ func _make_terrain_chunk(chunk_x: int, chunk_z: int, material: StandardMaterial3
     var arrays := []
     arrays.resize(Mesh.ARRAY_MAX)
     arrays[Mesh.ARRAY_VERTEX] = vertices
+    arrays[Mesh.ARRAY_NORMAL] = normals
     arrays[Mesh.ARRAY_COLOR] = colors
     arrays[Mesh.ARRAY_INDEX] = indices
     var mesh := ArrayMesh.new()
