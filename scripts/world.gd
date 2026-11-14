@@ -3,10 +3,14 @@ extends Node3D
 class MinimapRadar extends Control:
     var world_ref: Node3D
     var cached_coast := PackedVector2Array()
+    var redraw_elapsed := 0.0
 
-    func _process(_delta: float) -> void:
-        # El contorno se calcula una sola vez; solo el marcador del jugador se anima.
-        queue_redraw()
+    func _process(delta: float) -> void:
+        # El contorno se calcula una sola vez y el marcador se refresca a 10 Hz.
+        redraw_elapsed += delta
+        if redraw_elapsed >= 0.1:
+            redraw_elapsed = 0.0
+            queue_redraw()
 
     func _draw() -> void:
         var rect := Rect2(Vector2.ZERO, size)
@@ -665,12 +669,13 @@ func _make_hotbar_preview(slot: Button, model_file: String, item_name: String, s
 
     var viewport := SubViewport.new()
     # Renderizar a 4x el tamaño visible para que los modelos no se vean dentados al reducirlos.
-    viewport.size = Vector2i(256, 176)
+    viewport.size = Vector2i(160, 112)
     viewport.msaa_3d = Viewport.MSAA_2X
     preview.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
     viewport.transparent_bg = true
     viewport.own_world_3d = true
-    viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+    # Los iconos 3D de la hotbar son estáticos: no deben renderizarse en cada frame.
+    viewport.render_target_update_mode = SubViewport.UPDATE_ONCE
     preview.add_child(viewport)
 
     if not model_file.is_empty():
