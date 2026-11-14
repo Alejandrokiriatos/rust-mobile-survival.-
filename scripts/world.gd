@@ -275,7 +275,7 @@ func _make_hud() -> void:
     status_stack.add_theme_constant_override("separation", 5)
     status_panel.add_child(status_stack)
     var status_title := Label.new()
-    status_title.text = "SUPERVIVENCIA  /  v0.3.3"
+    status_title.text = "SUPERVIVENCIA  /  v0.3.4"
     status_title.add_theme_font_size_override("font_size", 12)
     status_title.add_theme_color_override("font_color", Color(0.88, 0.94, 0.88))
     status_stack.add_child(status_title)
@@ -379,14 +379,23 @@ func _make_hud() -> void:
     hotbar.add_theme_constant_override("separation", 4)
     hotbar.alignment = BoxContainer.ALIGNMENT_CENTER
     hotbar_panel.add_child(hotbar)
-    var slot_names := ["PIEDRA", "HACHA", "PICO", "LUZ", "VENDA", "VACÍO"]
+    var slot_names := ["PIEDRA", "HACHA", "PICO", "MADERA", "FOGATA", "VACÍO"]
+    var slot_models := [
+        "resource-stone.glb",
+        "tool-axe.glb",
+        "tool-pickaxe.glb",
+        "resource-wood.glb",
+        "campfire-pit.glb",
+        ""
+    ]
     for i in range(6):
         var slot := Button.new()
-        slot.text = "%d\n%s" % [i + 1, slot_names[i]]
+        slot.text = ""
         slot.custom_minimum_size = Vector2(59, 56)
-        slot.add_theme_font_size_override("font_size", 9)
+        slot.clip_contents = true
         _style_hotbar_slot(slot, i == 0)
         hotbar.add_child(slot)
+        _make_hotbar_preview(slot, slot_models[i], slot_names[i], i + 1)
 
     _make_craft_panel()
     _make_inventory_panel()
@@ -448,6 +457,98 @@ func _add_control_button(label_text: String, offset: Vector2, button_size: Vecto
     button.button_down.connect(player.mobile_action.bind(action, true))
     button.button_up.connect(player.mobile_action.bind(action, false))
     control_layer.add_child(button)
+
+func _make_hotbar_preview(slot: Button, model_file: String, item_name: String, slot_number: int) -> void:
+    var preview := SubViewportContainer.new()
+    preview.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+    preview.offset_left = 2
+    preview.offset_top = 2
+    preview.offset_right = -2
+    preview.offset_bottom = -15
+    preview.stretch = true
+    preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    slot.add_child(preview)
+
+    var viewport := SubViewport.new()
+    viewport.size = Vector2i(128, 88)
+    viewport.transparent_bg = true
+    viewport.own_world_3d = true
+    viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+    preview.add_child(viewport)
+
+    if not model_file.is_empty():
+        var model_path := "res://assets/kenney/survival-kit/" + model_file
+        if ResourceLoader.exists(model_path):
+            var packed := load(model_path) as PackedScene
+            if packed:
+                var model := packed.instantiate() as Node3D
+                if model:
+                    viewport.add_child(model)
+                    var bounds := _preview_bounds(model, Transform3D.IDENTITY)
+                    if bounds.size.length() > 0.001:
+                        var center := bounds.position + bounds.size * 0.5
+                        var longest := maxf(bounds.size.x, maxf(bounds.size.y, bounds.size.z))
+                        model.scale = Vector3.ONE * (1.05 / maxf(longest, 0.01))
+                        model.position = -center * model.scale.x
+                    var camera := Camera3D.new()
+                    camera.position = Vector3(1.45, 1.15, 1.75)
+                    camera.look_at(Vector3.ZERO, Vector3.UP)
+                    camera.projection = Camera3D.PROJECTION_ORTHOGONAL
+                    camera.size = 1.85
+                    viewport.add_child(camera)
+                    camera.current = true
+                    var light := DirectionalLight3D.new()
+                    light.rotation_degrees = Vector3(-42, -28, 0)
+                    light.light_energy = 1.6
+                    viewport.add_child(light)
+                    var fill := OmniLight3D.new()
+                    fill.position = Vector3(-1.0, 1.0, 0.8)
+                    fill.light_energy = 0.65
+                    fill.omni_range = 4.0
+                    viewport.add_child(fill)
+
+    var number := Label.new()
+    number.text = str(slot_number)
+    number.position = Vector2(3, 1)
+    number.add_theme_font_size_override("font_size", 9)
+    number.add_theme_color_override("font_color", Color(1.0, 0.91, 0.62))
+    number.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    slot.add_child(number)
+
+    var caption := Label.new()
+    caption.text = item_name
+    caption.anchor_left = 0.0
+    caption.anchor_right = 1.0
+    caption.anchor_top = 1.0
+    caption.anchor_bottom = 1.0
+    caption.offset_top = -14
+    caption.offset_bottom = -1
+    caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    caption.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+    caption.add_theme_font_size_override("font_size", 8)
+    caption.add_theme_color_override("font_color", Color(0.96, 0.96, 0.89))
+    caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    slot.add_child(caption)
+
+func _preview_bounds(node: Node, parent_transform: Transform3D) -> AABB:
+    var combined := AABB()
+    var has_bounds := false
+    var current_transform := parent_transform
+    if node is Node3D:
+        current_transform = parent_transform * (node as Node3D).transform
+    if node is MeshInstance3D and (node as MeshInstance3D).mesh:
+        var mesh_bounds: AABB = (node as MeshInstance3D).mesh.get_aabb() * current_transform
+        combined = mesh_bounds
+        has_bounds = true
+    for child in node.get_children():
+        var child_bounds := _preview_bounds(child, current_transform)
+        if child_bounds.size.length() > 0.001:
+            if has_bounds:
+                combined = combined.merge(child_bounds)
+            else:
+                combined = child_bounds
+                has_bounds = true
+    return combined if has_bounds else AABB()
 
 func _style_hotbar_tray(panel: PanelContainer) -> void:
     var tray := StyleBoxFlat.new()
