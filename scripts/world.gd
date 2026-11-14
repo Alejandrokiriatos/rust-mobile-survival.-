@@ -275,7 +275,7 @@ func _make_hud() -> void:
     status_stack.add_theme_constant_override("separation", 5)
     status_panel.add_child(status_stack)
     var status_title := Label.new()
-    status_title.text = "SUPERVIVENCIA  /  v0.3.2"
+    status_title.text = "SUPERVIVENCIA  /  v0.3.3"
     status_title.add_theme_font_size_override("font_size", 12)
     status_title.add_theme_color_override("font_color", Color(0.88, 0.94, 0.88))
     status_stack.add_child(status_title)
@@ -347,13 +347,16 @@ func _make_hud() -> void:
     control_layer.add_child(mobile_joystick)
     player.joystick = mobile_joystick
 
-    # Acciones principales en dos filas, separadas del inventario.
-    _add_control_button("↑\nSALTAR", Vector2(-102, -204), Vector2(82, 76), "jump", "hold")
+    # Grupo táctil circular: acciones separadas y alcanzables con el pulgar.
+    _add_control_button("⤴\nSALTAR", Vector2(-184, -244), Vector2(66, 66), "jump", "hold")
     _add_sprint_button()
     _add_crouch_button()
-    interact_button = _create_action_button("✚\nUSAR", Vector2(-102, -112), Vector2(82, 76))
+    interact_button = _create_action_button("✚\nUSAR", Vector2(-104, -246), Vector2(68, 68))
     interact_button.pressed.connect(_try_harvest)
     control_layer.add_child(interact_button)
+    var attack_button := _create_action_button("✊\nGOLPE", Vector2(-104, -164), Vector2(78, 78))
+    attack_button.pressed.connect(_try_harvest)
+    control_layer.add_child(attack_button)
 
     var bag := _create_action_button("BOLSA", Vector2(-194, 150), Vector2(88, 38), true)
     bag.pressed.connect(_toggle_inventory_panel)
@@ -362,25 +365,27 @@ func _make_hud() -> void:
     craft.pressed.connect(_toggle_craft_panel)
     control_layer.add_child(craft)
 
-    # Barra rápida en una bandeja única; cada objeto tiene su propia casilla.
+    # Hotbar compacta de seis casillas, translúcida y con selección muy visible.
     var hotbar_panel := PanelContainer.new()
     hotbar_panel.anchor_left = 0.5
     hotbar_panel.anchor_right = 0.5
     hotbar_panel.anchor_top = 1.0
     hotbar_panel.anchor_bottom = 1.0
-    hotbar_panel.position = Vector2(-174, -78)
-    _style_action_panel(hotbar_panel)
+    hotbar_panel.position = Vector2(-198, -72)
+    hotbar_panel.custom_minimum_size = Vector2(396, 64)
+    _style_hotbar_tray(hotbar_panel)
     control_layer.add_child(hotbar_panel)
     var hotbar := HBoxContainer.new()
-    hotbar.add_theme_constant_override("separation", 5)
+    hotbar.add_theme_constant_override("separation", 4)
+    hotbar.alignment = BoxContainer.ALIGNMENT_CENTER
     hotbar_panel.add_child(hotbar)
-    var slot_names := ["PIEDRA", "HACHA", "PICO", "FUEGO", "OTRO"]
-    var slot_marks := ["01", "02", "03", "04", "05"]
-    for i in range(5):
+    var slot_names := ["PIEDRA", "HACHA", "PICO", "LUZ", "VENDA", "VACÍO"]
+    var slot_icons := ["◆", "🪓", "⛏", "🔥", "✚", "·"]
+    for i in range(6):
         var slot := Button.new()
-        slot.text = slot_marks[i] + "\n" + slot_names[i]
-        slot.custom_minimum_size = Vector2(62, 56)
-        slot.add_theme_font_size_override("font_size", 10)
+        slot.text = "%d\n%s\n%s" % [i + 1, slot_icons[i], slot_names[i]]
+        slot.custom_minimum_size = Vector2(59, 56)
+        slot.add_theme_font_size_override("font_size", 9)
         _style_hotbar_slot(slot, i == 0)
         hotbar.add_child(slot)
 
@@ -407,7 +412,7 @@ func _make_bar(parent: VBoxContainer, caption: String, tint: Color) -> ProgressB
     bar.add_theme_font_size_override("font_size", 9)
     bar.add_theme_color_override("font_color", Color.WHITE)
     var track := StyleBoxFlat.new()
-    track.bg_color = Color(0.10, 0.14, 0.12, 0.98)
+    track.bg_color = Color(0.045, 0.065, 0.058, 0.78)
     track.set_corner_radius_all(5)
     bar.add_theme_stylebox_override("background", track)
     var fill := StyleBoxFlat.new()
@@ -419,8 +424,8 @@ func _make_bar(parent: VBoxContainer, caption: String, tint: Color) -> ProgressB
 
 func _style_action_panel(panel: Control) -> void:
     var style := StyleBoxFlat.new()
-    style.bg_color = Color(0.025, 0.045, 0.040, 0.88)
-    style.border_color = Color(0.63, 0.75, 0.65, 0.48)
+    style.bg_color = Color(0.018, 0.028, 0.025, 0.70)
+    style.border_color = Color(0.63, 0.75, 0.65, 0.34)
     style.set_border_width_all(1)
     style.set_corner_radius_all(12)
     style.set_content_margin_all(8)
@@ -445,12 +450,21 @@ func _add_control_button(label_text: String, offset: Vector2, button_size: Vecto
     button.button_up.connect(player.mobile_action.bind(action, false))
     control_layer.add_child(button)
 
+func _style_hotbar_tray(panel: PanelContainer) -> void:
+    var tray := StyleBoxFlat.new()
+    tray.bg_color = Color(0.012, 0.018, 0.016, 0.66)
+    tray.border_color = Color(0.72, 0.80, 0.70, 0.42)
+    tray.set_border_width_all(1)
+    tray.set_corner_radius_all(11)
+    tray.set_content_margin_all(4)
+    panel.add_theme_stylebox_override("panel", tray)
+
 func _style_hotbar_slot(button: Button, selected: bool) -> void:
     var normal := StyleBoxFlat.new()
-    normal.bg_color = Color(0.16, 0.20, 0.17, 0.98) if selected else Color(0.055, 0.075, 0.065, 0.96)
+    normal.bg_color = Color(0.26, 0.29, 0.20, 0.92) if selected else Color(0.035, 0.050, 0.045, 0.58)
     normal.border_color = Color(0.91, 0.75, 0.34, 0.95) if selected else Color(0.55, 0.65, 0.56, 0.55)
     normal.set_border_width_all(2 if selected else 1)
-    normal.set_corner_radius_all(8)
+    normal.set_corner_radius_all(6)
     normal.set_content_margin_all(4)
     button.add_theme_stylebox_override("normal", normal)
     var pressed := normal.duplicate() as StyleBoxFlat
@@ -460,7 +474,7 @@ func _style_hotbar_slot(button: Button, selected: bool) -> void:
     button.add_theme_color_override("font_pressed_color", Color(1.0, 0.88, 0.48))
 
 func _add_crouch_button() -> void:
-    var button := _create_action_button("↓\nAGACHAR", Vector2(-194, -112), Vector2(82, 76))
+    var button := _create_action_button("▽\nAGACHAR", Vector2(-184, -164), Vector2(66, 66))
     button.button_down.connect(player.set_crouching.bind(true))
     button.button_up.connect(player.set_crouching.bind(false))
     control_layer.add_child(button)
@@ -508,7 +522,7 @@ func _add_hold_button(label_text: String, offset: Vector2, action: String, wide:
     control_layer.add_child(button)
 
 func _add_sprint_button() -> void:
-    var button := _create_action_button("»\nCORRER", Vector2(-194, -204), Vector2(82, 76))
+    var button := _create_action_button("»\nCORRER", Vector2(-104, -326), Vector2(64, 64))
     button.button_down.connect(player.set_sprinting.bind(true))
     button.button_up.connect(player.set_sprinting.bind(false))
     control_layer.add_child(button)
@@ -726,10 +740,10 @@ func _load_game() -> void:
 
 func _style_action_button(button: Button, round_button: bool = false) -> void:
     var normal := StyleBoxFlat.new()
-    normal.bg_color = Color(0.055, 0.085, 0.073, 0.91)
-    normal.border_color = Color(0.73, 0.82, 0.72, 0.78)
+    normal.bg_color = Color(0.025, 0.040, 0.035, 0.76)
+    normal.border_color = Color(0.78, 0.86, 0.76, 0.68)
     normal.set_border_width_all(1)
-    normal.set_corner_radius_all(24 if round_button else 10)
+    normal.set_corner_radius_all(36 if round_button else 10)
     normal.set_content_margin_all(5)
     button.add_theme_stylebox_override("normal", normal)
     var pressed := normal.duplicate() as StyleBoxFlat
