@@ -76,10 +76,7 @@ func _make_island() -> void:
     add_child(terrain)
     var body := StaticBody3D.new()
     var shape := CollisionShape3D.new()
-    var box := BoxShape3D.new()
-    box.size = Vector3(80, 2, 80)
-    shape.shape = box
-    shape.position.y = -1.7
+    shape.shape = mesh.create_trimesh_shape()
     body.add_child(shape)
     add_child(body)
     var water := MeshInstance3D.new()
@@ -133,8 +130,7 @@ func _scatter_resources() -> void:
         _create_resource(Vector3(x, 0.0, z), kind)
 
 func _create_resource(pos: Vector3, kind: String) -> void:
-    var node := StaticBody3D.new()
-    node.set_script(RESOURCE_SCRIPT)
+    var node = RESOURCE_SCRIPT.new()
     node.resource_type = kind
     node.amount = 3
     node.position = pos
