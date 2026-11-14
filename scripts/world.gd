@@ -189,25 +189,58 @@ func _terrain_normal_at(x: float, z: float) -> Vector3:
     return Vector3(-slope_x, sample_step * 2.0, -slope_z).normalized()
 
 func _terrain_color_at(x: float, z: float, height: float, normal: Vector3) -> Color:
-    var patch := detail_noise.get_noise_2d(x * 2.1, z * 2.1)
-    var grass := Color(0.105, 0.205, 0.085).lerp(Color(0.19, 0.31, 0.12), clampf(0.48 + patch * 0.72, 0.0, 1.0))
-    var dry_grass := Color(0.31, 0.29, 0.16).lerp(Color(0.43, 0.38, 0.21), clampf(0.5 + patch, 0.0, 1.0))
-    var sand := Color(0.53, 0.43, 0.27).lerp(Color(0.69, 0.59, 0.39), clampf(0.5 + patch * 0.55, 0.0, 1.0))
-    var rock := Color(0.25, 0.27, 0.25).lerp(Color(0.43, 0.43, 0.39), clampf(0.5 + patch * 0.7, 0.0, 1.0))
-    var alpine := Color(0.34, 0.37, 0.32)
-    var color := grass.lerp(dry_grass, clampf((biome_noise.get_noise_2d(x, z) + 0.25) * 0.55, 0.0, 0.58))
-    color = sand.lerp(color, smoothstep(WATER_LEVEL + 0.6, WATER_LEVEL + 5.0, height))
-    color = color.lerp(alpine, smoothstep(21.0, 31.0, height) * 0.45)
-    var slope := 1.0 - clampf(normal.y, 0.0, 1.0)
-    color = color.lerp(rock, smoothstep(0.22, 0.62, slope) * 0.92)
-    return color
+    var biome_mask := clampf(0.5 + biome_noise.get_noise_2d(x, z) * 0.5, 0.0, 1.0)
+    return Color(biome_mask, clampf((height + 4.0) / 38.0, 0.0, 1.0), 1.0 - normal.y, 1.0)
 
-func _make_terrain_material() -> StandardMaterial3D:
-    var material := StandardMaterial3D.new()
-    material.vertex_color_use_as_albedo = true
-    material.roughness = 0.96
-    # Evita que una diferencia de winding deje el terreno invisible en algunos drivers móviles.
-    material.cull_mode = BaseMaterial3D.CULL_DISABLED
+func _make_terrain_material() -> ShaderMaterial:
+    var shader := Shader.new()
+    shader.code = """
+shader_type spatial;
+render_mode diffuse_burley, specular_schlick_ggx, cull_disabled;
+uniform sampler2D grass_tex : source_color, repeat_enable, filter_linear_mipmap;
+uniform sampler2D dirt_tex : source_color, repeat_enable, filter_linear_mipmap;
+uniform sampler2D sand_tex : source_color, repeat_enable, filter_linear_mipmap;
+uniform sampler2D rock_tex : source_color, repeat_enable, filter_linear_mipmap;
+varying vec3 terrain_position;
+varying vec3 terrain_normal;
+void vertex() {
+    terrain_position = VERTEX;
+    terrain_normal = normalize(NORMAL);
+}
+void fragment() {
+    vec2 terrain_uv = terrain_position.xz * 0.095;
+    float height = terrain_position.y;
+    float slope = 1.0 - clamp(normalize(terrain_normal).y, 0.0, 1.0);
+    vec3 grass = texture(grass_tex, terrain_uv).rgb;
+    vec3 dirt = texture(dirt_tex, terrain_uv * 0.82).rgb;
+    vec3 sand = texture(sand_tex, terrain_uv * 0.72).rgb;
+    vec3 rock = texture(rock_tex, terrain_uv * 0.58).rgb;
+    float biome_mix = smoothstep(0.52, 0.86, COLOR.r) * 0.48;
+    float beach_mix = 1.0 - smoothstep(-0.9, 3.6, height);
+    float highland_mix = smoothstep(22.0, 34.0, height) * 0.35;
+    float rock_mix = max(smoothstep(0.18, 0.58, slope), highland_mix);
+    vec3 ground = mix(grass, dirt, biome_mix);
+    ground = mix(ground, sand, beach_mix);
+    ground = mix(ground, rock, rock_mix);
+    ALBEDO = ground;
+    ROUGHNESS = 0.94;
+    SPECULAR = 0.12;
+}
+"""
+    var material := ShaderMaterial.new()
+    material.shader = shader
+    var texture_paths := {
+        "grass_tex": "res://assets/terrain/ambientcg/Grass005_Color.jpg",
+        "dirt_tex": "res://assets/terrain/ambientcg/Ground067_Color.jpg",
+        "sand_tex": "res://assets/terrain/ambientcg/Ground090_Color.jpg",
+        "rock_tex": "res://assets/terrain/ambientcg/Rock063_Color.jpg"
+    }
+    for parameter in texture_paths:
+        var path: String = texture_paths[parameter]
+        if ResourceLoader.exists(path):
+            material.set_shader_parameter(parameter, load(path))
+        else:
+            push_warning("Falta textura PBR de terreno: " + path)
     return material
 
 func _make_large_terrain() -> void:
@@ -216,7 +249,7 @@ func _make_large_terrain() -> void:
         for chunk_x in range(CHUNK_COUNT):
             _make_terrain_chunk(chunk_x, chunk_z, terrain_material)
 
-func _make_terrain_chunk(chunk_x: int, chunk_z: int, material: StandardMaterial3D) -> void:
+func _make_terrain_chunk(chunk_x: int, chunk_z: int, material: ShaderMaterial) -> void:
     var vertices := PackedVector3Array()
     var normals := PackedVector3Array()
     var colors := PackedColorArray()
