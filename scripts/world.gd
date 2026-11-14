@@ -2,8 +2,12 @@ extends Node3D
 
 class MinimapRadar extends Control:
     var world_ref: Node3D
+    var cached_coast := PackedVector2Array()
+
     func _process(_delta: float) -> void:
+        # El contorno se calcula una sola vez; solo el marcador del jugador se anima.
         queue_redraw()
+
     func _draw() -> void:
         var rect := Rect2(Vector2.ZERO, size)
         draw_rect(rect, Color(0.035, 0.075, 0.065, 0.98), true)
@@ -14,18 +18,21 @@ class MinimapRadar extends Control:
         draw_line(Vector2(2, center.y), Vector2(size.x - 2, center.y), Color(0.45, 0.62, 0.48, 0.22), 1.0)
         if world_ref == null or not is_instance_valid(world_ref):
             return
+        if cached_coast.is_empty():
+            for i in range(97):
+                var angle := TAU * float(i) / 96.0
+                var radius := 256.0
+                for step in range(1, 65):
+                    var candidate := 256.0 * float(step) / 64.0
+                    var sample := Vector2(cos(angle), sin(angle)) * candidate
+                    if world_ref._height_at(sample.x, sample.y) <= -1.5:
+                        radius = candidate
+                        break
+                var point := Vector2(cos(angle), sin(angle)) * radius
+                cached_coast.append(Vector2(point.x / 512.0 * size.x, point.y / 512.0 * size.y))
         var coast := PackedVector2Array()
-        for i in range(97):
-            var angle := TAU * float(i) / 96.0
-            var radius := 256.0
-            for step in range(1, 65):
-                var candidate := 256.0 * float(step) / 64.0
-                var sample := Vector2(cos(angle), sin(angle)) * candidate
-                if world_ref._height_at(sample.x, sample.y) <= -1.5:
-                    radius = candidate
-                    break
-            var point := Vector2(cos(angle), sin(angle)) * radius
-            coast.append(center + Vector2(point.x / 512.0 * size.x, point.y / 512.0 * size.y))
+        for point in cached_coast:
+            coast.append(center + point)
         if coast.size() > 2:
             draw_polyline(coast, Color(0.78, 0.79, 0.58, 0.9), 1.6, true)
         var player_node = world_ref.get("player")
