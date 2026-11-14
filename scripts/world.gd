@@ -2,6 +2,7 @@ extends Node3D
 
 const PLAYER_SCRIPT = preload("res://scripts/player.gd")
 const RESOURCE_SCRIPT = preload("res://scripts/resource_node.gd")
+const JOYSTICK_SCRIPT = preload("res://scripts/mobile_joystick.gd")
 const WORLD_SIZE := 512.0
 const CHUNK_COUNT := 4
 const CHUNK_SIZE := WORLD_SIZE / CHUNK_COUNT
@@ -15,6 +16,7 @@ var hud: Label
 var message: Label
 var interact_button: Button
 var control_layer: CanvasLayer
+var mobile_joystick: MobileJoystick
 var terrain_noise := FastNoiseLite.new()
 var detail_noise := FastNoiseLite.new()
 var asset_scenes: Dictionary = {}
@@ -75,15 +77,23 @@ func _load_nature_pack() -> void:
 func _make_environment() -> void:
     var env := WorldEnvironment.new()
     var e := Environment.new()
-    e.background_mode = Environment.BG_COLOR
-    e.background_color = Color(0.48, 0.68, 0.82)
+    e.background_mode = Environment.BG_SKY
+    var sky := Sky.new()
+    var sky_material := ProceduralSkyMaterial.new()
+    sky_material.sky_top_color = Color(0.16, 0.38, 0.62)
+    sky_material.sky_horizon_color = Color(0.62, 0.78, 0.88)
+    sky_material.ground_bottom_color = Color(0.12, 0.19, 0.14)
+    sky_material.ground_horizon_color = Color(0.48, 0.59, 0.48)
+    sky.sky_material = sky_material
+    e.sky = sky
     e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
     e.ambient_light_color = Color(0.72, 0.79, 0.9)
     e.ambient_light_energy = 0.75
     e.tonemap_mode = Environment.TONE_MAPPER_FILMIC
     e.fog_enabled = true
     e.fog_light_color = Color(0.58, 0.72, 0.78)
-    e.fog_density = 0.0018
+    e.fog_density = 0.0012
+    e.fog_sky_affect = 0.65
     env.environment = e
     add_child(env)
     var sun := DirectionalLight3D.new()
@@ -91,29 +101,65 @@ func _make_environment() -> void:
     sun.light_energy = 1.0
     sun.shadow_enabled = true
     sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
-    sun.directional_shadow_max_distance = 55.0
-    sun.directional_shadow_max_distance = 75.0
+    sun.directional_shadow_max_distance = 65.0
+    sun.directional_shadow_fade_start = 0.8
     add_child(sun)
 
 func _height_at(x: float, z: float) -> float:
-    var edge := maxf(absf(x), absf(z)) / (WORLD_SIZE * 0.49)
-    var land_shape := pow(clampf(1.0 - edge, 0.0, 1.0), 1.55)
-    var broad := terrain_noise.get_noise_2d(x, z) * 4.2
-    var detail := detail_noise.get_noise_2d(x, z) * 0.55
-    var base_height := broad + detail + land_shape * 12.0 - 3.0
-    var spawn_blend := smoothstep(0.0, 28.0, Vector2(x, z).length())
-    return lerpf(3.0, base_height, spawn_blend)
+    var radial_distance := Vector2(x, z).length()
+    var edge := radial_distance / (WORLD_SIZE * 0.485)
+    var land_shape := pow(clampf(1.0 - edge, 0.0, 1.0), 1.38)
+    var broad := terrain_noise.get_noise_2d(x, z) * 5.0
+    var detail := detail_noise.get_noise_2d(x, z) * 0.8
+    var base_height := broad + detail + land_shape * 17.0 - 5.0
+    # Meseta de inicio suave: evita aparecer en una pendiente sin crear una plataforma abrupta.
+    var spawn_blend := smoothstep(0.0, 52.0, radial_distance)
+    return lerpf(4.0, base_height, spawn_blend)
+
+func _make_terrain_shader() -> Shader:
+    var shader := Shader.new()
+    shader.code = """
+shader_type spatial;
+render_mode diffuse_burley, specular_schlick_ggx;
+varying vec3 world_position;
+varying vec3 world_normal;
+void vertex() {
+    world_position = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+    world_normal = normalize(MODEL_NORMAL_MATRIX * NORMAL);
+}
+float hash21(vec2 p) {
+    p = fract(p * vec2(123.34, 456.21));
+    p += dot(p, p + 45.32);
+    return fract(p.x * p.y);
+}
+void fragment() {
+    float slope = 1.0 - clamp(dot(normalize(world_normal), vec3(0.0, 1.0, 0.0)), 0.0, 1.0);
+    float n = hash21(floor(world_position.xz * 0.32));
+    float height = world_position.y;
+    vec3 grass_dark = vec3(0.105, 0.235, 0.105);
+    vec3 grass_light = vec3(0.19, 0.34, 0.145);
+    vec3 sand = vec3(0.55, 0.47, 0.30);
+    vec3 rock = vec3(0.34, 0.35, 0.32);
+    vec3 grass = mix(grass_dark, grass_light, smoothstep(0.15, 0.85, n));
+    float beach = 1.0 - smoothstep(-1.5, 1.2, height);
+    float highland = smoothstep(10.0, 18.0, height);
+    vec3 base = mix(grass, sand, beach * 0.92);
+    base = mix(base, vec3(0.27, 0.34, 0.25), highland * 0.55);
+    base = mix(base, rock, smoothstep(0.30, 0.72, slope) * 0.82);
+    ALBEDO = base;
+    ROUGHNESS = 0.96;
+}
+"""
+    return shader
 
 func _make_large_terrain() -> void:
-    var terrain_material := StandardMaterial3D.new()
-    terrain_material.vertex_color_use_as_albedo = true
-    terrain_material.roughness = 1.0
-    terrain_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+    var terrain_material := ShaderMaterial.new()
+    terrain_material.shader = _make_terrain_shader()
     for chunk_z in range(CHUNK_COUNT):
         for chunk_x in range(CHUNK_COUNT):
             _make_terrain_chunk(chunk_x, chunk_z, terrain_material)
 
-func _make_terrain_chunk(chunk_x: int, chunk_z: int, material: StandardMaterial3D) -> void:
+func _make_terrain_chunk(chunk_x: int, chunk_z: int, material: ShaderMaterial) -> void:
     var vertices := PackedVector3Array()
     var normals := PackedVector3Array()
     var colors := PackedColorArray()
@@ -226,7 +272,7 @@ func _make_hud() -> void:
     interact_button.anchor_right = 1.0
     interact_button.anchor_top = 1.0
     interact_button.anchor_bottom = 1.0
-    interact_button.position = Vector2(-158, -92)
+    interact_button.position = Vector2(-158, -100)
     interact_button.add_theme_font_size_override("font_size", 17)
     _style_action_button(interact_button)
     interact_button.pressed.connect(_try_harvest)
@@ -238,7 +284,7 @@ func _make_hud() -> void:
     look_hint.anchor_right = 1.0
     look_hint.anchor_top = 1.0
     look_hint.anchor_bottom = 1.0
-    look_hint.position = Vector2(-300, -34)
+    look_hint.position = Vector2(-300, -30)
     look_hint.size = Vector2(285, 24)
     look_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
     look_hint.add_theme_font_size_override("font_size", 12)
@@ -258,6 +304,21 @@ func _add_hold_button(label_text: String, offset: Vector2, action: String, wide:
     _style_action_button(button)
     button.button_down.connect(player.set_mobile_action.bind(action, true))
     button.button_up.connect(player.set_mobile_action.bind(action, false))
+    control_layer.add_child(button)
+
+func _add_sprint_button() -> void:
+    var button := Button.new()
+    button.text = "CORRER"
+    button.size = Vector2(138, 48)
+    button.anchor_left = 1.0
+    button.anchor_right = 1.0
+    button.anchor_top = 1.0
+    button.anchor_bottom = 1.0
+    button.position = Vector2(-158, -232)
+    button.add_theme_font_size_override("font_size", 15)
+    _style_action_button(button)
+    button.button_down.connect(player.set_sprinting.bind(true))
+    button.button_up.connect(player.set_sprinting.bind(false))
     control_layer.add_child(button)
 
 func _style_action_button(button: Button) -> void:
