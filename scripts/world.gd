@@ -12,6 +12,7 @@ const CHUNK_SEGMENTS := 64
 const WATER_LEVEL := -2.5
 const RESOURCE_COUNTS := {"Madera": 88, "Piedra": 58, "Fibra": 76}
 const NATURE_PATH := "res://assets/kenney/nature-kit/"
+const NATURE_MEGA_PATH := "res://assets/quaternius/stylized-nature-megakit/"
 
 var player: SurvivalPlayer
 var hud: Label
@@ -39,6 +40,7 @@ func _ready() -> void:
     _make_player()
     _make_hud()
     _scatter_resources()
+    _scatter_ground_cover()
     _spawn_wildlife()
     _load_game()
 
@@ -61,15 +63,24 @@ func _configure_noise() -> void:
     detail_noise.fractal_octaves = 2
 
 func _load_nature_pack() -> void:
+    # Quaternius aporta árboles, rocas y vegetación con texturas; Kenney queda como respaldo ligero.
+    var base_path := NATURE_MEGA_PATH
     var files := {
-        "Madera": ["tree_default.glb", "tree_oak.glb"],
-        "Piedra": ["rock_largeA.glb", "rock_smallA.glb"],
-        "Fibra": ["plant_bush.glb", "grass.glb"]
+        "Madera": ["CommonTree_1.gltf", "CommonTree_3.gltf", "Pine_1.gltf", "Pine_3.gltf", "TwistedTree_1.gltf", "DeadTree_1.gltf"],
+        "Piedra": ["Rock_Medium_1.gltf", "Rock_Medium_2.gltf", "Rock_Medium_3.gltf"],
+        "Fibra": ["Bush_Common.gltf", "Bush_Common_Flowers.gltf", "Fern_1.gltf", "Plant_1_Big.gltf", "Grass_Common_Short.gltf"]
     }
+    if not ResourceLoader.exists(base_path + "CommonTree_1.gltf"):
+        base_path = NATURE_PATH
+        files = {
+            "Madera": ["tree_default.glb", "tree_oak.glb"],
+            "Piedra": ["rock_largeA.glb", "rock_smallA.glb"],
+            "Fibra": ["plant_bush.glb", "grass.glb"]
+        }
     for kind in files:
         var available: Array[PackedScene] = []
         for filename in files[kind]:
-            var path: String = NATURE_PATH + str(filename)
+            var path: String = base_path + str(filename)
             if ResourceLoader.exists(path):
                 var resource = load(path)
                 if resource is PackedScene:
@@ -79,9 +90,9 @@ func _load_nature_pack() -> void:
     for kind in asset_scenes:
         total += asset_scenes[kind].size()
     if total == 0:
-        push_warning("Falta Kenney Nature Kit. Consulta assets/kenney/nature-kit/README.txt.")
+        push_warning("No se encontraron modelos de vegetación. Revisa los paquetes CC0.")
     else:
-        print("Kenney Nature Kit: ", total, " modelos cargados.")
+        print("Modelos de naturaleza cargados: ", total)
 
 func _make_environment() -> void:
     var env := WorldEnvironment.new()
@@ -600,12 +611,66 @@ func _create_resource(pos: Vector3, kind: String) -> void:
     node.model_scene = model_scene
     node.position = pos
     if kind == "Madera":
-        node.model_scale = Vector3.ONE * 4.0
+        node.model_scale = Vector3.ONE * (0.9 if ResourceLoader.exists(NATURE_MEGA_PATH + "CommonTree_1.gltf") else 4.0)
     elif kind == "Piedra":
-        node.model_scale = Vector3.ONE * 3.6
+        node.model_scale = Vector3.ONE * (1.0 if ResourceLoader.exists(NATURE_MEGA_PATH + "Rock_Medium_1.gltf") else 3.6)
     else:
-        node.model_scale = Vector3.ONE * 3.0
+        node.model_scale = Vector3.ONE * (0.85 if ResourceLoader.exists(NATURE_MEGA_PATH + "Bush_Common.gltf") else 3.0)
     add_child(node)
+
+func _scatter_ground_cover() -> void:
+    # Césped y plantas pequeñas en MultiMesh: cientos de matas con pocas llamadas de dibujo.
+    _add_foliage_multimesh(NATURE_MEGA_PATH + "Grass_Common_Short.gltf", 20, 0.75, 1.15)
+    _add_foliage_multimesh(NATURE_MEGA_PATH + "Fern_1.gltf", 4, 0.65, 1.0)
+    _add_foliage_multimesh(NATURE_MEGA_PATH + "Flower_3_Group.gltf", 3, 0.7, 1.0)
+
+func _add_foliage_multimesh(model_path: String, per_chunk: int, min_scale: float, max_scale: float) -> void:
+    if not ResourceLoader.exists(model_path):
+        return
+    var packed := load(model_path) as PackedScene
+    if packed == null:
+        return
+    var sample := packed.instantiate()
+    var mesh_nodes: Array[MeshInstance3D] = []
+    if sample is MeshInstance3D:
+        mesh_nodes.append(sample as MeshInstance3D)
+    for node in sample.find_children("*", "MeshInstance3D", true, false):
+        if node is MeshInstance3D:
+            mesh_nodes.append(node as MeshInstance3D)
+    if mesh_nodes.is_empty():
+        sample.free()
+        return
+    for chunk_z in range(CHUNK_COUNT):
+        for chunk_x in range(CHUNK_COUNT):
+            var center_x := -WORLD_SIZE * 0.5 + (float(chunk_x) + 0.5) * CHUNK_SIZE
+            var center_z := -WORLD_SIZE * 0.5 + (float(chunk_z) + 0.5) * CHUNK_SIZE
+            for source_mesh in mesh_nodes:
+                if source_mesh.mesh == null:
+                    continue
+                var multi := MultiMesh.new()
+                multi.transform_format = MultiMesh.TRANSFORM_3D
+                multi.mesh = source_mesh.mesh
+                multi.instance_count = per_chunk
+                for index in range(per_chunk):
+                    var local_x := rng.randf_range(-CHUNK_SIZE * 0.48, CHUNK_SIZE * 0.48)
+                    var local_z := rng.randf_range(-CHUNK_SIZE * 0.48, CHUNK_SIZE * 0.48)
+                    var world_x := center_x + local_x
+                    var world_z := center_z + local_z
+                    var ground_y := _height_at(world_x, world_z)
+                    var scale_value := rng.randf_range(min_scale, max_scale)
+                    if ground_y <= WATER_LEVEL + 0.4:
+                        scale_value = 0.0
+                    var basis := Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3.ONE * scale_value)
+                    multi.set_instance_transform(index, Transform3D(basis, Vector3(local_x, ground_y, local_z)))
+                var instance := MultiMeshInstance3D.new()
+                instance.multimesh = multi
+                instance.position = Vector3(center_x, 0.0, center_z)
+                instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+                instance.custom_aabb = AABB(Vector3(-CHUNK_SIZE * 0.5, -12.0, -CHUNK_SIZE * 0.5), Vector3(CHUNK_SIZE, 42.0, CHUNK_SIZE))
+                if source_mesh.material_override != null:
+                    instance.material_override = source_mesh.material_override
+                add_child(instance)
+    sample.free()
 
 func _try_harvest() -> void:
     if not is_instance_valid(player):
