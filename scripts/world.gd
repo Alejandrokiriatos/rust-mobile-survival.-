@@ -57,7 +57,7 @@ func _load_nature_pack() -> void:
     for kind in files:
         var available: Array[PackedScene] = []
         for filename in files[kind]:
-            var path := NATURE_PATH + filename
+            var path: String = NATURE_PATH + str(filename)
             if ResourceLoader.exists(path):
                 var resource = load(path)
                 if resource is PackedScene:
