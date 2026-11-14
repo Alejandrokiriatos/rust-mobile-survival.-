@@ -8,7 +8,7 @@ const BUILDABLE_SCRIPT = preload("res://scripts/survival_buildable.gd")
 const WORLD_SIZE := 512.0
 const CHUNK_COUNT := 4
 const CHUNK_SIZE := WORLD_SIZE / CHUNK_COUNT
-const CHUNK_SEGMENTS := 64
+const CHUNK_SEGMENTS := 96
 const WATER_LEVEL := -2.5
 const RESOURCE_COUNTS := {"Madera": 88, "Piedra": 58, "Fibra": 76}
 const NATURE_PATH := "res://assets/kenney/nature-kit/"
@@ -23,6 +23,9 @@ var control_layer: CanvasLayer
 var mobile_joystick: MobileJoystick
 var terrain_noise := FastNoiseLite.new()
 var detail_noise := FastNoiseLite.new()
+var ridge_noise := FastNoiseLite.new()
+var coast_noise := FastNoiseLite.new()
+var biome_noise := FastNoiseLite.new()
 var asset_scenes: Dictionary = {}
 var rng := RandomNumberGenerator.new()
 var sun_light: DirectionalLight3D
@@ -40,7 +43,7 @@ var inventory_panel: PanelContainer
 var inventory_summary: Label
 
 func _ready() -> void:
-    rng.randomize()
+    rng.seed = 48123
     _configure_noise()
     _load_nature_pack()
     _make_environment()
@@ -75,13 +78,29 @@ func _process(delta: float) -> void:
 func _configure_noise() -> void:
     terrain_noise.seed = 48123
     terrain_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX
-    terrain_noise.frequency = 0.006
-    terrain_noise.fractal_octaves = 4
-    terrain_noise.fractal_gain = 0.48
+    terrain_noise.frequency = 0.0048
+    terrain_noise.fractal_octaves = 5
+    terrain_noise.fractal_gain = 0.52
+    terrain_noise.fractal_lacunarity = 2.05
     detail_noise.seed = 91827
     detail_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX
-    detail_noise.frequency = 0.025
-    detail_noise.fractal_octaves = 2
+    detail_noise.frequency = 0.032
+    detail_noise.fractal_octaves = 3
+    detail_noise.fractal_gain = 0.48
+    ridge_noise.seed = 27641
+    ridge_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX
+    ridge_noise.frequency = 0.008
+    ridge_noise.fractal_type = FastNoiseLite.FRACTAL_RIDGED
+    ridge_noise.fractal_octaves = 4
+    ridge_noise.fractal_gain = 0.52
+    coast_noise.seed = 64913
+    coast_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX
+    coast_noise.frequency = 0.012
+    coast_noise.fractal_octaves = 3
+    biome_noise.seed = 33197
+    biome_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX
+    biome_noise.frequency = 0.0032
+    biome_noise.fractal_octaves = 3
 
 func _load_nature_pack() -> void:
     # Quaternius aporta árboles, rocas y vegetación con texturas; Kenney queda como respaldo ligero.
@@ -149,61 +168,58 @@ func _make_environment() -> void:
 
 func _height_at(x: float, z: float) -> float:
     var radial_distance := Vector2(x, z).length()
-    var edge := radial_distance / (WORLD_SIZE * 0.485)
-    var land_shape := pow(clampf(1.0 - edge, 0.0, 1.0), 1.38)
-    var broad := terrain_noise.get_noise_2d(x, z) * 5.0
-    var detail := detail_noise.get_noise_2d(x, z) * 0.8
-    var base_height := broad + detail + land_shape * 17.0 - 5.0
-    # Meseta de inicio suave: evita aparecer en una pendiente sin crear una plataforma abrupta.
-    var spawn_blend := smoothstep(0.0, 52.0, radial_distance)
-    return lerpf(4.0, base_height, spawn_blend)
+    # La costa no es un círculo perfecto: el ruido de baja frecuencia crea bahías y salientes.
+    var coast_warp := coast_noise.get_noise_2d(x, z) * 0.105
+    var edge := radial_distance / (WORLD_SIZE * 0.485) + coast_warp
+    var land_shape := pow(clampf(1.0 - edge, 0.0, 1.0), 0.72)
+    var broad := terrain_noise.get_noise_2d(x, z) * 8.5
+    var detail := detail_noise.get_noise_2d(x, z) * 1.65
+    var ridge_value := maxf(0.0, ridge_noise.get_noise_2d(x, z))
+    var ridges := pow(ridge_value, 1.7) * 9.0
+    var elevation := 20.0 + broad + detail + ridges
+    var base_height := -4.0 + land_shape * elevation
+    # Zona de aparición suavizada, no una plataforma plana recortada.
+    var spawn_blend := smoothstep(0.0, 34.0, radial_distance)
+    return lerpf(6.0, base_height, spawn_blend)
 
-func _make_terrain_shader() -> Shader:
-    var shader := Shader.new()
-    shader.code = """
-shader_type spatial;
-render_mode diffuse_burley, specular_schlick_ggx;
-varying vec3 world_position;
-varying vec3 world_normal;
-void vertex() {
-    world_position = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-    world_normal = normalize(MODEL_NORMAL_MATRIX * NORMAL);
-}
-float hash21(vec2 p) {
-    p = fract(p * vec2(123.34, 456.21));
-    p += dot(p, p + 45.32);
-    return fract(p.x * p.y);
-}
-void fragment() {
-    float slope = 1.0 - clamp(dot(normalize(world_normal), vec3(0.0, 1.0, 0.0)), 0.0, 1.0);
-    float n = hash21(floor(world_position.xz * 0.32));
-    float height = world_position.y;
-    vec3 grass_dark = vec3(0.105, 0.235, 0.105);
-    vec3 grass_light = vec3(0.19, 0.34, 0.145);
-    vec3 sand = vec3(0.55, 0.47, 0.30);
-    vec3 rock = vec3(0.34, 0.35, 0.32);
-    vec3 grass = mix(grass_dark, grass_light, smoothstep(0.15, 0.85, n));
-    float beach = 1.0 - smoothstep(-1.5, 1.2, height);
-    float highland = smoothstep(10.0, 18.0, height);
-    vec3 base = mix(grass, sand, beach * 0.92);
-    base = mix(base, vec3(0.27, 0.34, 0.25), highland * 0.55);
-    base = mix(base, rock, smoothstep(0.30, 0.72, slope) * 0.82);
-    ALBEDO = base;
-    ROUGHNESS = 0.96;
-}
-"""
-    return shader
+func _terrain_normal_at(x: float, z: float) -> Vector3:
+    var sample_step := 1.25
+    var slope_x := _height_at(x + sample_step, z) - _height_at(x - sample_step, z)
+    var slope_z := _height_at(x, z + sample_step) - _height_at(x, z - sample_step)
+    return Vector3(-slope_x, sample_step * 2.0, -slope_z).normalized()
+
+func _terrain_color_at(x: float, z: float, height: float, normal: Vector3) -> Color:
+    var patch := detail_noise.get_noise_2d(x * 2.1, z * 2.1)
+    var grass := Color(0.105, 0.205, 0.085).lerp(Color(0.19, 0.31, 0.12), clampf(0.48 + patch * 0.72, 0.0, 1.0))
+    var dry_grass := Color(0.31, 0.29, 0.16).lerp(Color(0.43, 0.38, 0.21), clampf(0.5 + patch, 0.0, 1.0))
+    var sand := Color(0.53, 0.43, 0.27).lerp(Color(0.69, 0.59, 0.39), clampf(0.5 + patch * 0.55, 0.0, 1.0))
+    var rock := Color(0.25, 0.27, 0.25).lerp(Color(0.43, 0.43, 0.39), clampf(0.5 + patch * 0.7, 0.0, 1.0))
+    var alpine := Color(0.34, 0.37, 0.32)
+    var color := grass.lerp(dry_grass, clampf((biome_noise.get_noise_2d(x, z) + 0.25) * 0.55, 0.0, 0.58))
+    color = sand.lerp(color, smoothstep(WATER_LEVEL + 0.6, WATER_LEVEL + 5.0, height))
+    color = color.lerp(alpine, smoothstep(21.0, 31.0, height) * 0.45)
+    var slope := 1.0 - clampf(normal.y, 0.0, 1.0)
+    color = color.lerp(rock, smoothstep(0.22, 0.62, slope) * 0.92)
+    return color
+
+func _make_terrain_material() -> StandardMaterial3D:
+    var material := StandardMaterial3D.new()
+    material.vertex_color_use_as_albedo = true
+    material.roughness = 0.96
+    # Evita que una diferencia de winding deje el terreno invisible en algunos drivers móviles.
+    material.cull_mode = BaseMaterial3D.CULL_DISABLED
+    return material
 
 func _make_large_terrain() -> void:
-    var terrain_material := ShaderMaterial.new()
-    terrain_material.shader = _make_terrain_shader()
+    var terrain_material := _make_terrain_material()
     for chunk_z in range(CHUNK_COUNT):
         for chunk_x in range(CHUNK_COUNT):
             _make_terrain_chunk(chunk_x, chunk_z, terrain_material)
 
-func _make_terrain_chunk(chunk_x: int, chunk_z: int, material: ShaderMaterial) -> void:
+func _make_terrain_chunk(chunk_x: int, chunk_z: int, material: StandardMaterial3D) -> void:
     var vertices := PackedVector3Array()
     var normals := PackedVector3Array()
+    var colors := PackedColorArray()
     var indices := PackedInt32Array()
     var origin_x := -WORLD_SIZE * 0.5 + float(chunk_x) * CHUNK_SIZE
     var origin_z := -WORLD_SIZE * 0.5 + float(chunk_z) * CHUNK_SIZE
@@ -212,11 +228,11 @@ func _make_terrain_chunk(chunk_x: int, chunk_z: int, material: ShaderMaterial) -
         for x in range(CHUNK_SEGMENTS + 1):
             var px := origin_x + float(x) * step
             var pz := origin_z + float(z) * step
-            var h := _height_at(px, pz)
-            vertices.append(Vector3(px, h, pz))
-            var slope_x := _height_at(px + step, pz) - _height_at(px - step, pz)
-            var slope_z := _height_at(px, pz + step) - _height_at(px, pz - step)
-            normals.append(Vector3(-slope_x, step * 2.0, -slope_z).normalized())
+            var height := _height_at(px, pz)
+            var normal := _terrain_normal_at(px, pz)
+            vertices.append(Vector3(px, height, pz))
+            normals.append(normal)
+            colors.append(_terrain_color_at(px, pz, height, normal))
     var row := CHUNK_SEGMENTS + 1
     for z in range(CHUNK_SEGMENTS):
         for x in range(CHUNK_SEGMENTS):
@@ -229,6 +245,7 @@ func _make_terrain_chunk(chunk_x: int, chunk_z: int, material: ShaderMaterial) -
     arrays.resize(Mesh.ARRAY_MAX)
     arrays[Mesh.ARRAY_VERTEX] = vertices
     arrays[Mesh.ARRAY_NORMAL] = normals
+    arrays[Mesh.ARRAY_COLOR] = colors
     arrays[Mesh.ARRAY_INDEX] = indices
     var mesh := ArrayMesh.new()
     mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
@@ -236,6 +253,7 @@ func _make_terrain_chunk(chunk_x: int, chunk_z: int, material: ShaderMaterial) -
     var terrain := MeshInstance3D.new()
     terrain.name = "Terrain_%02d_%02d" % [chunk_x, chunk_z]
     terrain.mesh = mesh
+    terrain.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
     add_child(terrain)
     var body := StaticBody3D.new()
     body.name = "TerrainCollision_%02d_%02d" % [chunk_x, chunk_z]
@@ -251,15 +269,17 @@ func _make_water() -> void:
     water.mesh = water_mesh
     water.position.y = WATER_LEVEL
     var water_material := StandardMaterial3D.new()
-    water_material.albedo_color = Color(0.08, 0.34, 0.49, 0.88)
+    water_material.albedo_color = Color(0.045, 0.24, 0.36, 0.94)
     water_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-    water_material.roughness = 0.32
+    water_material.roughness = 0.22
+    water_material.metallic = 0.08
+    water_material.cull_mode = BaseMaterial3D.CULL_DISABLED
     water.material_override = water_material
     add_child(water)
 
 func _make_player() -> void:
     player = SurvivalPlayer.new()
-    player.position = Vector3(0.0, _height_at(0.0, 0.0) + 1.2, 0.0)
+    player.position = Vector3(0.0, _height_at(0.0, 0.0) + 0.25, 0.0)
     add_child(player)
 
 func _make_hud() -> void:
@@ -277,7 +297,7 @@ func _make_hud() -> void:
     status_stack.add_theme_constant_override("separation", 5)
     status_panel.add_child(status_stack)
     var status_title := Label.new()
-    status_title.text = "SUPERVIVENCIA  /  v0.3.4"
+    status_title.text = "SUPERVIVENCIA  /  v0.4.0"
     status_title.add_theme_font_size_override("font_size", 12)
     status_title.add_theme_color_override("font_color", Color(0.88, 0.94, 0.88))
     status_stack.add_child(status_title)
@@ -924,14 +944,27 @@ func _scatter_resources() -> void:
     for kind in RESOURCE_COUNTS:
         var created := 0
         var attempts := 0
-        while created < RESOURCE_COUNTS[kind] and attempts < RESOURCE_COUNTS[kind] * 8:
+        while created < RESOURCE_COUNTS[kind] and attempts < RESOURCE_COUNTS[kind] * 18:
             attempts += 1
             var x := rng.randf_range(-WORLD_SIZE * 0.46, WORLD_SIZE * 0.46)
             var z := rng.randf_range(-WORLD_SIZE * 0.46, WORLD_SIZE * 0.46)
-            if Vector2(x, z).length() < 16.0:
+            var distance := Vector2(x, z).length()
+            if distance < 28.0:
                 continue
             var y := _height_at(x, z)
-            if y < WATER_LEVEL + 1.0:
+            if y < WATER_LEVEL + 2.0:
+                continue
+            var normal := _terrain_normal_at(x, z)
+            var slope := 1.0 - normal.y
+            var biome := biome_noise.get_noise_2d(x, z)
+            var ridge := ridge_noise.get_noise_2d(x, z)
+            if slope > 0.68:
+                continue
+            if kind == "Madera" and (biome < -0.48 or y < 1.0):
+                continue
+            if kind == "Piedra" and (y < 5.0 and ridge < 0.12):
+                continue
+            if kind == "Fibra" and (slope > 0.48 or y > 27.0):
                 continue
             _create_resource(Vector3(x, y, z), kind)
             created += 1
@@ -953,10 +986,10 @@ func _create_resource(pos: Vector3, kind: String) -> void:
     add_child(node)
 
 func _scatter_ground_cover() -> void:
-    # Césped y plantas pequeñas en MultiMesh: cientos de matas con pocas llamadas de dibujo.
-    _add_foliage_multimesh(NATURE_MEGA_PATH + "Grass_Common_Short.gltf", 20, 0.75, 1.15)
-    _add_foliage_multimesh(NATURE_MEGA_PATH + "Fern_1.gltf", 4, 0.65, 1.0)
-    _add_foliage_multimesh(NATURE_MEGA_PATH + "Flower_3_Group.gltf", 3, 0.7, 1.0)
+    # Instancias de modelos 3D reales; las zonas rocosas, playas y laderas quedan despejadas.
+    _add_foliage_multimesh(NATURE_MEGA_PATH + "Grass_Common_Short.gltf", 42, 0.78, 1.18)
+    _add_foliage_multimesh(NATURE_MEGA_PATH + "Fern_1.gltf", 8, 0.62, 0.96)
+    _add_foliage_multimesh(NATURE_MEGA_PATH + "Flower_3_Group.gltf", 5, 0.62, 0.95)
 
 func _add_foliage_multimesh(model_path: String, per_chunk: int, min_scale: float, max_scale: float) -> void:
     if not ResourceLoader.exists(model_path):
@@ -991,9 +1024,15 @@ func _add_foliage_multimesh(model_path: String, per_chunk: int, min_scale: float
                     var world_x := center_x + local_x
                     var world_z := center_z + local_z
                     var ground_y := _height_at(world_x, world_z)
+                    var normal := _terrain_normal_at(world_x, world_z)
+                    var slope := 1.0 - normal.y
                     var scale_value := rng.randf_range(min_scale, max_scale)
-                    if ground_y <= WATER_LEVEL + 0.4:
+                    if ground_y <= WATER_LEVEL + 3.0 or slope > 0.48:
                         scale_value = 0.0
+                    elif ground_y > 26.0:
+                        scale_value *= 0.45
+                    elif biome_noise.get_noise_2d(world_x, world_z) < -0.62:
+                        scale_value *= 0.25
                     var basis := Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3.ONE * scale_value)
                     multi.set_instance_transform(index, Transform3D(basis, Vector3(local_x, ground_y, local_z)))
                 var instance := MultiMeshInstance3D.new()
