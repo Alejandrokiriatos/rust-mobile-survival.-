@@ -280,10 +280,10 @@ func _make_hud() -> void:
     status_title.add_theme_font_size_override("font_size", 12)
     status_title.add_theme_color_override("font_color", Color(0.88, 0.94, 0.88))
     status_stack.add_child(status_title)
-    health_bar = _make_bar(status_stack, "♥  VIDA", Color(0.91, 0.22, 0.20))
-    hunger_bar = _make_bar(status_stack, "◆  HAMBRE", Color(0.94, 0.61, 0.18))
-    thirst_bar = _make_bar(status_stack, "●  SED", Color(0.20, 0.61, 0.94))
-    stamina_bar = _make_bar(status_stack, "⚡ ENERGÍA", Color(0.28, 0.78, 0.43))
+    health_bar = _make_bar(status_stack, "VIDA", Color(0.91, 0.20, 0.18))
+    hunger_bar = _make_bar(status_stack, "HAMBRE", Color(0.94, 0.57, 0.16))
+    thirst_bar = _make_bar(status_stack, "SED", Color(0.18, 0.58, 0.94))
+    stamina_bar = _make_bar(status_stack, "ENERGÍA", Color(0.25, 0.76, 0.40))
 
     # Brújula y hora en cápsulas independientes para que no se solapen.
     var compass_panel := PanelContainer.new()
@@ -361,11 +361,11 @@ func _make_hud() -> void:
     attack_button.pressed.connect(_try_attack)
     control_layer.add_child(attack_button)
 
-    var bag := _create_action_button("MOCHILA", Vector2(-194, 150), Vector2(88, 38), true)
+    var bag := _create_action_button("", Vector2(-82, -164), Vector2(58, 58))
     _set_action_icon(bag, "backpack")
     bag.pressed.connect(_toggle_inventory_panel)
     control_layer.add_child(bag)
-    var craft := _create_action_button("CREAR", Vector2(-100, 150), Vector2(88, 38), true)
+    var craft := _create_action_button("", Vector2(-82, -96), Vector2(58, 58))
     _set_action_icon(craft, "craft")
     craft.pressed.connect(_toggle_craft_panel)
     control_layer.add_child(craft)
@@ -425,28 +425,35 @@ func _make_bar(parent: VBoxContainer, caption: String, tint: Color) -> ProgressB
     bar.add_theme_font_size_override("font_size", 9)
     bar.add_theme_color_override("font_color", Color.WHITE)
     var track := StyleBoxFlat.new()
-    track.bg_color = Color(0.045, 0.065, 0.058, 0.78)
-    track.set_corner_radius_all(5)
+    track.bg_color = Color(0.025, 0.035, 0.040, 0.88)
+    track.border_color = Color(0.80, 0.86, 0.86, 0.30)
+    track.set_border_width_all(1)
+    track.set_corner_radius_all(3)
     bar.add_theme_stylebox_override("background", track)
     var fill := StyleBoxFlat.new()
     fill.bg_color = tint
-    fill.set_corner_radius_all(5)
+    fill.set_corner_radius_all(3)
+    fill.shadow_color = tint.darkened(0.45)
+    fill.shadow_size = 2
     bar.add_theme_stylebox_override("fill", fill)
     row.add_child(bar)
     return bar
 
 func _style_action_panel(panel: Control) -> void:
     var style := StyleBoxFlat.new()
-    style.bg_color = Color(0.018, 0.028, 0.025, 0.70)
-    style.border_color = Color(0.63, 0.75, 0.65, 0.34)
+    style.bg_color = Color(0.018, 0.026, 0.024, 0.78)
+    style.border_color = Color(0.78, 0.84, 0.78, 0.52)
     style.set_border_width_all(1)
-    style.set_corner_radius_all(12)
+    style.set_corner_radius_all(9)
+    style.shadow_color = Color(0.0, 0.0, 0.0, 0.42)
+    style.shadow_size = 7
+    style.shadow_offset = Vector2(0, 3)
     style.set_content_margin_all(8)
     panel.add_theme_stylebox_override("panel", style)
 
 func _create_action_button(label_text: String, offset: Vector2, button_size: Vector2, compact: bool = false) -> Button:
     var button := Button.new()
-    button.text = label_text
+    button.text = label_text if compact else ""
     button.size = button_size
     button.anchor_left = 1.0
     button.anchor_right = 1.0
@@ -455,6 +462,7 @@ func _create_action_button(label_text: String, offset: Vector2, button_size: Vec
     button.position = offset
     button.add_theme_font_size_override("font_size", 10 if compact else 11)
     button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    button.expand_icon = true
     _style_action_button(button, not compact)
     return button
 
@@ -858,24 +866,35 @@ func _set_action_icon(button: Button, icon_name: String) -> void:
         button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
 func _style_action_button(button: Button, round_button: bool = false) -> void:
+    # Control táctil circular: vidrio ahumado, aro claro y sombra para separarlo del mundo.
     var normal := StyleBoxFlat.new()
-    normal.bg_color = Color(0.025, 0.040, 0.035, 0.76)
-    normal.border_color = Color(0.78, 0.86, 0.76, 0.68)
+    normal.bg_color = Color(0.055, 0.065, 0.070, 0.78)
+    normal.border_color = Color(0.91, 0.94, 0.96, 0.58)
     normal.set_border_width_all(1)
-    normal.set_corner_radius_all(36 if round_button else 10)
-    normal.set_content_margin_all(5)
+    normal.set_corner_radius_all(999 if round_button else 12)
+    normal.shadow_color = Color(0.0, 0.0, 0.0, 0.48)
+    normal.shadow_size = 8
+    normal.shadow_offset = Vector2(0, 3)
+    normal.set_content_margin_all(7)
     button.add_theme_stylebox_override("normal", normal)
-    var pressed := normal.duplicate() as StyleBoxFlat
-    pressed.bg_color = Color(0.23, 0.37, 0.26, 0.98)
-    pressed.border_color = Color(0.96, 0.79, 0.39, 0.98)
+    var pressed := StyleBoxFlat.new()
+    pressed.bg_color = Color(0.24, 0.30, 0.33, 0.94)
+    pressed.border_color = Color(0.68, 0.86, 1.0, 0.95)
+    pressed.set_border_width_all(2)
+    pressed.set_corner_radius_all(999 if round_button else 12)
+    pressed.shadow_color = Color(0.0, 0.0, 0.0, 0.34)
+    pressed.shadow_size = 3
+    pressed.shadow_offset = Vector2(0, 1)
+    pressed.set_content_margin_all(7)
     button.add_theme_stylebox_override("pressed", pressed)
     var hover := normal.duplicate() as StyleBoxFlat
-    hover.bg_color = Color(0.12, 0.19, 0.14, 0.97)
+    hover.bg_color = Color(0.13, 0.16, 0.18, 0.90)
     button.add_theme_stylebox_override("hover", hover)
-    button.add_theme_color_override("font_color", Color(0.96, 0.97, 0.91))
-    button.add_theme_color_override("font_pressed_color", Color(1.0, 0.91, 0.60))
+    button.add_theme_color_override("font_color", Color(0.97, 0.98, 1.0))
+    button.add_theme_color_override("font_pressed_color", Color.WHITE)
     button.add_theme_color_override("font_hover_color", Color.WHITE)
-    button.add_theme_font_size_override("font_size", 12)
+    button.add_theme_font_size_override("font_size", 11)
+    button.add_theme_constant_override("icon_max_width", 30)
 
 func _has_all_resource_models() -> bool:
     for kind in ["Madera", "Piedra", "Fibra"]:
