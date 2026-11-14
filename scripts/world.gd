@@ -380,10 +380,9 @@ func _make_hud() -> void:
     hotbar.alignment = BoxContainer.ALIGNMENT_CENTER
     hotbar_panel.add_child(hotbar)
     var slot_names := ["PIEDRA", "HACHA", "PICO", "LUZ", "VENDA", "VACÍO"]
-    var slot_icons := ["◆", "🪓", "⛏", "🔥", "✚", "·"]
     for i in range(6):
         var slot := Button.new()
-        slot.text = "%d\n%s\n%s" % [i + 1, slot_icons[i], slot_names[i]]
+        slot.text = "%d\n%s" % [i + 1, slot_names[i]]
         slot.custom_minimum_size = Vector2(59, 56)
         slot.add_theme_font_size_override("font_size", 9)
         _style_hotbar_slot(slot, i == 0)
