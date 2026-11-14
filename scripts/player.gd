@@ -18,6 +18,8 @@ var inventory := {"Madera": 0, "Piedra": 0, "Fibra": 0, "Comida": 0, "Agua": 0}
 var health := 100.0
 var hunger := 100.0
 var thirst := 100.0
+var stamina := 100.0
+var crouching := false
 
 func _ready() -> void:
     name = "Player"
@@ -39,7 +41,12 @@ func _ready() -> void:
     add_to_group("player")
 
 func set_sprinting(enabled: bool) -> void:
-    sprinting = enabled
+    sprinting = enabled and stamina > 1.0
+
+func set_crouching(enabled: bool) -> void:
+    crouching = enabled
+    if is_instance_valid(camera):
+        camera.position.y = 1.05 if crouching else 1.58
 
 func mobile_action(action: String, pressed: bool) -> void:
     if InputMap.has_action(action):
@@ -87,7 +94,13 @@ func _physics_process(delta: float) -> void:
 
     var local_direction := Vector3(input_dir.x, 0.0, input_dir.y)
     var direction := (global_transform.basis * local_direction).normalized()
-    var target_speed := sprint_speed if sprinting else walk_speed
+    if sprinting and not crouching and input_dir.length_squared() > 0.01:
+        stamina = maxf(0.0, stamina - delta * 18.0)
+        if stamina <= 0.0:
+            sprinting = false
+    else:
+        stamina = minf(100.0, stamina + delta * 12.0)
+    var target_speed := walk_speed * 0.48 if crouching else (sprint_speed if sprinting and stamina > 0.0 else walk_speed)
     var target_velocity := direction * target_speed
     var acceleration := ground_acceleration if is_on_floor() else air_acceleration
     velocity.x = move_toward(velocity.x, target_velocity.x, acceleration * delta)
