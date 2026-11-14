@@ -322,11 +322,11 @@ func _make_hud() -> void:
     mobile_joystick.position = Vector2(24, -184)
     control_layer.add_child(mobile_joystick)
     player.joystick = mobile_joystick
-    _add_hold_button("SALTO", Vector2(-104, -246), "jump")
+    _add_hold_button("SALTO", Vector2(-104, -246), "jump", true)
     _add_sprint_button()
     _add_crouch_button()
     interact_button = Button.new()
-    interact_button.text = "ATACAR"
+    interact_button.text = "USAR"
     interact_button.size = Vector2(88, 58)
     interact_button.anchor_left = 1.0
     interact_button.anchor_right = 1.0
@@ -463,12 +463,12 @@ func _add_hold_button(label_text: String, offset: Vector2, action: String, wide:
 func _add_sprint_button() -> void:
     var button := Button.new()
     button.text = "CORRER"
-    button.size = Vector2(138, 42)
+    button.size = Vector2(88, 42)
     button.anchor_left = 1.0
     button.anchor_right = 1.0
     button.anchor_top = 1.0
     button.anchor_bottom = 1.0
-    button.position = Vector2(-154, -154)
+    button.position = Vector2(-198, -154)
     button.add_theme_font_size_override("font_size", 15)
     _style_action_button(button)
     button.button_down.connect(player.set_sprinting.bind(true))
