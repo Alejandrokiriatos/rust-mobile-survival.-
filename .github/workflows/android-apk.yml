@@ -10,6 +10,8 @@ on:
       - "scenes/**"
       - "scripts/**"
       - "assets/**"
+      - "tools/download_survival_models.sh"
+      - "tools/download_terrain_textures.sh"
       - ".github/workflows/android-apk.yml"
 
 permissions:
@@ -85,18 +87,18 @@ jobs:
           export GODOT_ANDROID_KEYSTORE_DEBUG_PATH="$HOME/.android/debug.keystore"
           export GODOT_ANDROID_KEYSTORE_DEBUG_USER="androiddebugkey"
           export GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD="android"
-          "$GODOT_BIN" --headless --verbose --path . --export-debug "Android" build/RustMobileSurvival-v0.3.4-debug.apk
+          "$GODOT_BIN" --headless --verbose --path . --export-debug "Android" build/RustMobileSurvival-v0.4.0-debug.apk
 
       - name: Comprobar APK
         run: |
-          test -s build/RustMobileSurvival-v0.3.4-debug.apk
-          file build/RustMobileSurvival-v0.3.4-debug.apk
-          "$ANDROID_HOME/build-tools/34.0.0/aapt" dump badging build/RustMobileSurvival-v0.3.4-debug.apk | grep -F "versionCode='8' versionName='0.3.4'"
+          test -s build/RustMobileSurvival-v0.4.0-debug.apk
+          file build/RustMobileSurvival-v0.4.0-debug.apk
+          "$ANDROID_HOME/build-tools/34.0.0/aapt" dump badging build/RustMobileSurvival-v0.4.0-debug.apk | grep -F "versionCode='9' versionName='0.4.0'"
 
       - name: Publicar APK para descargar
         uses: actions/upload-artifact@v4
         with:
-          name: Rust-Mobile-Survival-v0.3.4-Android-debug
-          path: build/RustMobileSurvival-v0.3.4-debug.apk
+          name: Rust-Mobile-Survival-v0.4.0-Android-debug
+          path: build/RustMobileSurvival-v0.4.0-debug.apk
           if-no-files-found: error
           retention-days: 14
