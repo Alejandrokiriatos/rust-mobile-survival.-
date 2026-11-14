@@ -14,7 +14,7 @@ var camera: Camera3D
 var joystick: MobileJoystick
 var sprinting := false
 var axe_unlocked := false
-var inventory := {"Madera": 0, "Piedra": 0, "Fibra": 0}
+var inventory := {"Madera": 0, "Piedra": 0, "Fibra": 0, "Comida": 0, "Agua": 0}
 var health := 100.0
 var hunger := 100.0
 var thirst := 100.0
