@@ -44,7 +44,7 @@ func harvest(player: SurvivalPlayer) -> String:
     player.collect(resource_type, yield_amount)
     var world := get_parent()
     if world != null and world.has_method("on_resource_harvested"):
-        world.on_resource_harvested(resource_id, remaining)
+        world.call("on_resource_harvested", resource_id, remaining)
     if remaining == 0:
         queue_free()
     return "+%d %s" % [yield_amount, resource_type]
