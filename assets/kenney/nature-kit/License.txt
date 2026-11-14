@@ -1,0 +1,6 @@
+Kenney Nature Kit 2.1
+License: CC0 1.0 Universal (public domain dedication).
+Source: https://kenney.nl/assets/nature-kit
+The curated source repository identifies these models as Kenney Nature Kit 2.1, CC0 1.0:
+https://github.com/milnet01/Vestige/blob/main/ASSET_LICENSES.md
+Attribution is not required. Courtesy credit: Kenney.nl.
