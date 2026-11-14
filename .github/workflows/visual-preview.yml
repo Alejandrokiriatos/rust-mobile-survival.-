@@ -1,0 +1,66 @@
+name: Captura visual del juego
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "project.godot"
+      - "scenes/**"
+      - "scripts/**"
+      - "assets/**"
+      - "tools/capture_screenshot.gd"
+      - ".github/workflows/visual-preview.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Descargar proyecto
+        uses: actions/checkout@v4
+
+      - name: Instalar dependencias gráficas
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb mesa-utils libgl1-mesa-dri libxrandr2 libxinerama1 libxcursor1 libxi6 libx11-6
+
+      - name: Descargar Godot 4.4.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -L --fail --retry 3 https://github.com/godotengine/godot/releases/download/4.4.1-stable/Godot_v4.4.1-stable_linux.x86_64.zip -o /tmp/godot.zip
+          mkdir -p /tmp/godot
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          chmod +x /tmp/godot/Godot_v4.4.1-stable_linux.x86_64
+          echo "GODOT_BIN=/tmp/godot/Godot_v4.4.1-stable_linux.x86_64" >> "$GITHUB_ENV"
+
+      - name: Importar recursos del proyecto
+        run: xvfb-run -a "$GODOT_BIN" --headless --editor --path . --import --quit
+
+      - name: Renderizar escena y tomar captura
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          xvfb-run -a env LIBGL_ALWAYS_SOFTWARE=1 "$GODOT_BIN" --path . --rendering-method gl_compatibility --resolution 1280x720 --script res://tools/capture_screenshot.gd
+          SOURCE="$HOME/.local/share/godot/app_userdata/Rust Mobile Survival/capture/rust-mobile-survival-preview.png"
+          if [ ! -s "$SOURCE" ]; then
+            echo "No se encontró la captura en: $SOURCE"
+            find "$HOME/.local/share/godot/app_userdata" -type f -name "*.png" -print
+            exit 1
+          fi
+          cp "$SOURCE" artifacts/rust-mobile-survival-preview.png
+          file artifacts/rust-mobile-survival-preview.png
+          test "$(stat -c%s artifacts/rust-mobile-survival-preview.png)" -gt 10000
+
+      - name: Publicar captura como artefacto
+        uses: actions/upload-artifact@v4
+        with:
+          name: Rust-Mobile-Survival-Visual-Preview
+          path: artifacts/rust-mobile-survival-preview.png
+          if-no-files-found: error
+          retention-days: 14
