@@ -1,0 +1,89 @@
+name: Exportar APK Android de prueba
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "project.godot"
+      - "export_presets.cfg"
+      - "scenes/**"
+      - "scripts/**"
+      - "assets/**"
+      - ".github/workflows/android-apk.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar proyecto
+        uses: actions/checkout@v4
+
+      - name: Preparar Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Preparar Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Instalar paquetes Android
+        run: sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Descargar Godot 4.4.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -L --fail --retry 3 https://github.com/godotengine/godot/releases/download/4.4.1-stable/Godot_v4.4.1-stable_linux.x86_64.zip -o /tmp/godot.zip
+          curl -L --fail --retry 3 https://github.com/godotengine/godot/releases/download/4.4.1-stable/Godot_v4.4.1-stable_export_templates.tpz -o /tmp/templates.tpz
+          mkdir -p /tmp/godot "$HOME/.local/share/godot/export_templates/4.4.1.stable"
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          unzip -q /tmp/templates.tpz -d /tmp/godot-templates
+          cp -a /tmp/godot-templates/templates/. "$HOME/.local/share/godot/export_templates/4.4.1.stable/"
+          chmod +x /tmp/godot/Godot_v4.4.1-stable_linux.x86_64
+          echo "GODOT_BIN=/tmp/godot/Godot_v4.4.1-stable_linux.x86_64" >> "$GITHUB_ENV"
+
+      - name: Crear clave de depuración
+        run: |
+          mkdir -p "$HOME/.android"
+          keytool -genkeypair -v -keystore "$HOME/.android/debug.keystore" -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+
+      - name: Configurar rutas de exportación Godot
+        shell: bash
+        run: |
+          mkdir -p "$HOME/.config/godot"
+          cat > "$HOME/.config/godot/editor_settings-4.tres" <<EOF
+          [gd_resource type="EditorSettings" format=3]
+          [resource]
+          export/android/android_sdk_path = "$ANDROID_HOME"
+          export/android/java_sdk_path = "$JAVA_HOME"
+          export/android/debug_keystore = "$HOME/.android/debug.keystore"
+          export/android/debug_keystore_user = "androiddebugkey"
+          export/android/debug_keystore_pass = "android"
+          EOF
+
+      - name: Importar recursos
+        run: |
+          "$GODOT_BIN" --headless --editor --path . --import --quit
+
+      - name: Exportar APK de depuración
+        run: |
+          mkdir -p build
+          "$GODOT_BIN" --headless --path . --export-debug "Android" build/RustMobileSurvival-debug.apk
+
+      - name: Comprobar APK
+        run: |
+          test -s build/RustMobileSurvival-debug.apk
+          file build/RustMobileSurvival-debug.apk
+
+      - name: Publicar APK para descargar
+        uses: actions/upload-artifact@v4
+        with:
+          name: Rust-Mobile-Survival-Android-debug
+          path: build/RustMobileSurvival-debug.apk
+          if-no-files-found: error
+          retention-days: 14
