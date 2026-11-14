@@ -496,6 +496,8 @@ func _time_of_day_name() -> String:
 func _save_game() -> void:
     var config := ConfigFile.new()
     config.set_value("player", "position", player.global_position)
+    config.set_value("player", "rotation", player.rotation)
+    config.set_value("player", "camera_rotation", player.camera.rotation)
     config.set_value("player", "health", player.health)
     config.set_value("player", "hunger", player.hunger)
     config.set_value("player", "thirst", player.thirst)
@@ -514,6 +516,8 @@ func _load_game() -> void:
     if config.load("user://rust_mobile_save.cfg") != OK:
         return
     player.global_position = config.get_value("player", "position", player.global_position)
+    player.rotation = config.get_value("player", "rotation", player.rotation)
+    player.camera.rotation = config.get_value("player", "camera_rotation", player.camera.rotation)
     player.health = float(config.get_value("player", "health", 100.0))
     player.hunger = float(config.get_value("player", "hunger", 100.0))
     player.thirst = float(config.get_value("player", "thirst", 100.0))
@@ -592,3 +596,8 @@ func _try_harvest() -> void:
         message.text = hit.collider.harvest(player)
     else:
         message.text = "Acércate a un árbol, roca o arbusto y apunta."
+
+func _notification(what: int) -> void:
+    if what == NOTIFICATION_WM_CLOSE_REQUEST or what == NOTIFICATION_APPLICATION_PAUSED:
+        if is_instance_valid(player):
+            _save_game()
