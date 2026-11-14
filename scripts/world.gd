@@ -1,5 +1,44 @@
 extends Node3D
 
+class MinimapRadar extends Control:
+    var world_ref: Node3D
+    func _process(_delta: float) -> void:
+        queue_redraw()
+    func _draw() -> void:
+        var rect := Rect2(Vector2.ZERO, size)
+        draw_rect(rect, Color(0.035, 0.075, 0.065, 0.98), true)
+        var center := size * 0.5
+        for ring in range(1, 4):
+            draw_arc(center, minf(size.x, size.y) * float(ring) / 8.0, 0.0, TAU, 48, Color(0.45, 0.62, 0.48, 0.32), 1.0, true)
+        draw_line(Vector2(center.x, 2), Vector2(center.x, size.y - 2), Color(0.45, 0.62, 0.48, 0.22), 1.0)
+        draw_line(Vector2(2, center.y), Vector2(size.x - 2, center.y), Color(0.45, 0.62, 0.48, 0.22), 1.0)
+        if world_ref == null or not is_instance_valid(world_ref):
+            return
+        var coast := PackedVector2Array()
+        for i in range(97):
+            var angle := TAU * float(i) / 96.0
+            var radius := 256.0
+            for step in range(1, 65):
+                var candidate := 256.0 * float(step) / 64.0
+                var sample := Vector2(cos(angle), sin(angle)) * candidate
+                if world_ref._height_at(sample.x, sample.y) <= -1.5:
+                    radius = candidate
+                    break
+            var point := Vector2(cos(angle), sin(angle)) * radius
+            coast.append(center + Vector2(point.x / 512.0 * size.x, point.y / 512.0 * size.y))
+        if coast.size() > 2:
+            draw_polyline(coast, Color(0.78, 0.79, 0.58, 0.9), 1.6, true)
+        var player_node = world_ref.get("player")
+        if player_node != null and is_instance_valid(player_node):
+            var pos: Vector3 = player_node.global_position
+            var map_pos := center + Vector2(pos.x / 512.0 * size.x, pos.z / 512.0 * size.y)
+            map_pos.x = clampf(map_pos.x, 4.0, size.x - 4.0)
+            map_pos.y = clampf(map_pos.y, 4.0, size.y - 4.0)
+            var heading := -player_node.rotation.y - PI * 0.5
+            draw_line(map_pos, map_pos + Vector2(cos(heading), sin(heading)) * 9.0, Color(1.0, 0.86, 0.35), 2.0)
+            draw_circle(map_pos, 4.5, Color(1.0, 0.82, 0.25))
+            draw_arc(map_pos, 7.0, 0.0, TAU, 24, Color(0.08, 0.10, 0.07), 1.5, true)
+
 const PLAYER_SCRIPT = preload("res://scripts/player.gd")
 const RESOURCE_SCRIPT = preload("res://scripts/resource_node.gd")
 const JOYSTICK_SCRIPT = preload("res://scripts/mobile_joystick.gd")
@@ -44,6 +83,8 @@ var compass_label: Label
 var minimap_coords: Label
 var inventory_panel: PanelContainer
 var inventory_summary: Label
+var hotbar_slots: Array[Button] = []
+var selected_hotbar_index := 0
 
 func _ready() -> void:
     rng.seed = 48123
@@ -393,18 +434,12 @@ func _make_hud() -> void:
     map_title.add_theme_font_size_override("font_size", 10)
     map_title.add_theme_color_override("font_color", Color(0.77, 0.86, 0.77))
     map_col.add_child(map_title)
-    var map_view := ColorRect.new()
+    var map_view := MinimapRadar.new()
+    map_view.world_ref = self
     map_view.custom_minimum_size = Vector2(116, 70)
-    map_view.color = Color(0.12, 0.22, 0.17, 0.96)
+    map_view.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    map_view.clip_contents = true
     map_col.add_child(map_view)
-    var marker := Label.new()
-    marker.text = "▲"
-    marker.add_theme_font_size_override("font_size", 18)
-    marker.add_theme_color_override("font_color", Color(0.96, 0.82, 0.35))
-    marker.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-    marker.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-    marker.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-    map_view.add_child(marker)
     minimap_coords = Label.new()
     minimap_coords.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
     minimap_coords.add_theme_font_size_override("font_size", 10)
@@ -496,8 +531,10 @@ func _make_hud() -> void:
         slot.text = ""
         slot.custom_minimum_size = Vector2(59, 56)
         slot.clip_contents = true
-        _style_hotbar_slot(slot, i == 0)
+        _style_hotbar_slot(slot, i == selected_hotbar_index)
         hotbar.add_child(slot)
+        hotbar_slots.append(slot)
+        slot.pressed.connect(_select_hotbar_slot.bind(i))
         _make_hotbar_preview(slot, slot_models[i], slot_names[i], i + 1)
 
     _make_craft_panel()
@@ -597,6 +634,16 @@ func _add_control_button(label_text: String, offset: Vector2, button_size: Vecto
     button.button_down.connect(player.mobile_action.bind(action, true))
     button.button_up.connect(player.mobile_action.bind(action, false))
     control_layer.add_child(button)
+
+func _select_hotbar_slot(index: int) -> void:
+    if index < 0 or index >= hotbar_slots.size():
+        return
+    selected_hotbar_index = index
+    for i in range(hotbar_slots.size()):
+        _style_hotbar_slot(hotbar_slots[i], i == selected_hotbar_index)
+    var selected_names := ["PIEDRA", "HACHA", "PICO", "MADERA", "FOGATA", "VACÍO"]
+    if is_instance_valid(message):
+        message.text = "Seleccionado: " + selected_names[index]
 
 func _make_hotbar_preview(slot: Button, model_file: String, item_name: String, slot_number: int) -> void:
     var preview := SubViewportContainer.new()
