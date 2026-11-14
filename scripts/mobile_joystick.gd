@@ -3,8 +3,8 @@ class_name MobileJoystick
 
 @export_range(40.0, 120.0, 1.0) var radius := 62.0
 @export_range(0.0, 0.4, 0.01) var deadzone := 0.12
-@export var base_color := Color(0.025, 0.045, 0.04, 0.62)
-@export var knob_color := Color(0.78, 0.86, 0.70, 0.92)
+@export var base_color := Color(0.055, 0.065, 0.075, 0.58)
+@export var knob_color := Color(0.70, 0.74, 0.78, 0.86)
 
 var input_vector := Vector2.ZERO
 var _finger_index := -1
@@ -60,10 +60,12 @@ func _release_stick() -> void:
     queue_redraw()
 
 func _draw() -> void:
-    # Doble aro y centro de alto contraste para distinguir el área táctil del escenario.
-    draw_circle(_center, radius + 7.0, Color(0.015, 0.025, 0.02, 0.30))
+    # Joystick de vidrio ahumado, con doble aro y mando elevado.
+    draw_circle(_center + Vector2(0, 4), radius + 8.0, Color(0.0, 0.0, 0.0, 0.36))
+    draw_circle(_center, radius + 3.0, Color(0.78, 0.84, 0.88, 0.12))
     draw_circle(_center, radius, base_color)
-    draw_arc(_center, radius, 0.0, TAU, 64, Color(0.78, 0.86, 0.74, 0.78), 3.0, true)
-    draw_arc(_center, radius * 0.68, 0.0, TAU, 48, Color(0.75, 0.84, 0.72, 0.24), 1.5, true)
+    draw_arc(_center, radius, 0.0, TAU, 72, Color(0.91, 0.94, 0.97, 0.64), 2.2, true)
+    draw_arc(_center, radius * 0.68, 0.0, TAU, 56, Color(0.88, 0.92, 0.96, 0.22), 1.4, true)
+    draw_circle(_center + _knob_offset + Vector2(0, 2), radius * 0.37, Color(0.0, 0.0, 0.0, 0.30))
     draw_circle(_center + _knob_offset, radius * 0.36, knob_color)
-    draw_arc(_center + _knob_offset, radius * 0.36, 0.0, TAU, 48, Color(1.0, 1.0, 0.94, 0.86), 2.0, true)
+    draw_arc(_center + _knob_offset, radius * 0.36, 0.0, TAU, 56, Color(1.0, 1.0, 1.0, 0.78), 2.0, true)
