@@ -53,12 +53,23 @@ func _ready() -> void:
     _load_game()
 
 func _process(_delta: float) -> void:
-    if is_instance_valid(player) and is_instance_valid(hud):
-        hud.text = "RUST MOBILE SURVIVAL  |  v0.3.0\nVIDA %d   HAMBRE %d   SED %d\nMadera %d   Piedra %d   Fibra %d" % [
-            roundi(player.health), roundi(player.hunger), roundi(player.thirst),
-            player.inventory["Madera"], player.inventory["Piedra"], player.inventory["Fibra"]
-        ]
-
+    if not is_instance_valid(player):
+        return
+    if is_instance_valid(health_bar):
+        health_bar.value = player.health
+        hunger_bar.value = player.hunger
+        thirst_bar.value = player.thirst
+        stamina_bar.value = player.stamina
+    if is_instance_valid(compass_label):
+        var heading := fposmod(rad_to_deg(player.rotation.y) + 360.0, 360.0)
+        var directions := ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
+        compass_label.text = "%s   %03d°" % [directions[int(roundi(heading / 45.0)) % 8], roundi(heading)]
+    if is_instance_valid(minimap_coords):
+        minimap_coords.text = "X %d  Z %d" % [roundi(player.global_position.x), roundi(player.global_position.z)]
+    if is_instance_valid(inventory_summary):
+        inventory_summary.text = "Madera %d | Piedra %d | Fibra %d | Comida %d | Agua %d" % [player.inventory["Madera"], player.inventory["Piedra"], player.inventory["Fibra"], player.inventory["Comida"], player.inventory["Agua"]]
+    if is_instance_valid(day_label):
+        day_label.text = "%s · DÍA %d" % [_time_of_day_name(), int(day_clock) + 1]
 func _configure_noise() -> void:
     terrain_noise.seed = 48123
     terrain_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX
