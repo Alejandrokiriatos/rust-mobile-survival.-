@@ -45,7 +45,7 @@ class MinimapRadar extends Control:
             var map_pos := center + Vector2(pos.x / 512.0 * size.x, pos.z / 512.0 * size.y)
             map_pos.x = clampf(map_pos.x, 4.0, size.x - 4.0)
             map_pos.y = clampf(map_pos.y, 4.0, size.y - 4.0)
-            var heading := -player_node.rotation.y - PI * 0.5
+            var heading: float = -player_node.rotation.y - PI * 0.5
             draw_line(map_pos, map_pos + Vector2(cos(heading), sin(heading)) * 9.0, Color(1.0, 0.86, 0.35), 2.0)
             draw_circle(map_pos, 4.5, Color(1.0, 0.82, 0.25))
             draw_arc(map_pos, 7.0, 0.0, TAU, 24, Color(0.08, 0.10, 0.07), 1.5, true)
