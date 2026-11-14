@@ -46,7 +46,7 @@ func _ready() -> void:
 
 func _process(_delta: float) -> void:
     if is_instance_valid(player) and is_instance_valid(hud):
-        hud.text = "VIDA %d   HAMBRE %d   SED %d\nMadera %d   Piedra %d   Fibra %d" % [
+        hud.text = "RUST MOBILE SURVIVAL  |  v0.3.0\nVIDA %d   HAMBRE %d   SED %d\nMadera %d   Piedra %d   Fibra %d" % [
             roundi(player.health), roundi(player.hunger), roundi(player.thirst),
             player.inventory["Madera"], player.inventory["Piedra"], player.inventory["Fibra"]
         ]
