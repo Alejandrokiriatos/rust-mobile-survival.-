@@ -13,6 +13,7 @@ const WATER_LEVEL := -2.5
 const RESOURCE_COUNTS := {"Madera": 88, "Piedra": 58, "Fibra": 76}
 const NATURE_PATH := "res://assets/kenney/nature-kit/"
 const NATURE_MEGA_PATH := "res://assets/quaternius/stylized-nature-megakit/"
+const MOBILE_ICON_PATH := "res://assets/ui/mobile-controls/"
 
 var player: SurvivalPlayer
 var hud: Label
@@ -348,20 +349,24 @@ func _make_hud() -> void:
     player.joystick = mobile_joystick
 
     # Grupo táctil circular: acciones separadas y alcanzables con el pulgar.
-    _add_control_button("⤴\nSALTAR", Vector2(-184, -244), Vector2(66, 66), "jump", "hold")
+    _add_control_button("SALTAR", Vector2(-184, -244), Vector2(66, 66), "jump", "hold", "jump")
     _add_sprint_button()
     _add_crouch_button()
-    interact_button = _create_action_button("✚\nUSAR", Vector2(-104, -246), Vector2(68, 68))
+    interact_button = _create_action_button("USAR", Vector2(-104, -246), Vector2(68, 68))
+    _set_action_icon(interact_button, "use")
     interact_button.pressed.connect(_try_harvest)
     control_layer.add_child(interact_button)
-    var attack_button := _create_action_button("◎\nGOLPE", Vector2(-104, -164), Vector2(78, 78))
+    var attack_button := _create_action_button("GOLPE", Vector2(-104, -164), Vector2(78, 78))
+    _set_action_icon(attack_button, "attack")
     attack_button.pressed.connect(_try_attack)
     control_layer.add_child(attack_button)
 
-    var bag := _create_action_button("BOLSA", Vector2(-194, 150), Vector2(88, 38), true)
+    var bag := _create_action_button("MOCHILA", Vector2(-194, 150), Vector2(88, 38), true)
+    _set_action_icon(bag, "backpack")
     bag.pressed.connect(_toggle_inventory_panel)
     control_layer.add_child(bag)
     var craft := _create_action_button("CREAR", Vector2(-100, 150), Vector2(88, 38), true)
+    _set_action_icon(craft, "craft")
     craft.pressed.connect(_toggle_craft_panel)
     control_layer.add_child(craft)
 
@@ -448,12 +453,15 @@ func _create_action_button(label_text: String, offset: Vector2, button_size: Vec
     button.anchor_top = 1.0 if not compact else 0.0
     button.anchor_bottom = button.anchor_top
     button.position = offset
-    button.add_theme_font_size_override("font_size", 11 if compact else 13)
+    button.add_theme_font_size_override("font_size", 10 if compact else 11)
+    button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
     _style_action_button(button, not compact)
     return button
 
-func _add_control_button(label_text: String, offset: Vector2, button_size: Vector2, action: String, _mode: String = "hold") -> void:
+func _add_control_button(label_text: String, offset: Vector2, button_size: Vector2, action: String, _mode: String = "hold", icon_name: String = "") -> void:
     var button := _create_action_button(label_text, offset, button_size)
+    if not icon_name.is_empty():
+        _set_action_icon(button, icon_name)
     button.button_down.connect(player.mobile_action.bind(action, true))
     button.button_up.connect(player.mobile_action.bind(action, false))
     control_layer.add_child(button)
@@ -470,7 +478,10 @@ func _make_hotbar_preview(slot: Button, model_file: String, item_name: String, s
     slot.add_child(preview)
 
     var viewport := SubViewport.new()
-    viewport.size = Vector2i(128, 88)
+    # Renderizar a 4x el tamaño visible para que los modelos no se vean dentados al reducirlos.
+    viewport.size = Vector2i(256, 176)
+    viewport.msaa_3d = Viewport.MSAA_2X
+    preview.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
     viewport.transparent_bg = true
     viewport.own_world_3d = true
     viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
@@ -493,7 +504,7 @@ func _make_hotbar_preview(slot: Button, model_file: String, item_name: String, s
                     var camera := Camera3D.new()
                     camera.position = Vector3(1.45, 1.15, 1.75)
                     camera.projection = Camera3D.PROJECTION_ORTHOGONAL
-                    camera.size = 1.85
+                    camera.size = 1.62
                     viewport.add_child(camera)
                     camera.look_at(Vector3.ZERO, Vector3.UP)
                     camera.current = true
@@ -574,7 +585,8 @@ func _style_hotbar_slot(button: Button, selected: bool) -> void:
     button.add_theme_color_override("font_pressed_color", Color(1.0, 0.88, 0.48))
 
 func _add_crouch_button() -> void:
-    var button := _create_action_button("▽\nAGACHAR", Vector2(-184, -164), Vector2(66, 66))
+    var button := _create_action_button("AGACHAR", Vector2(-184, -164), Vector2(66, 66))
+    _set_action_icon(button, "crouch")
     button.button_down.connect(player.set_crouching.bind(true))
     button.button_up.connect(player.set_crouching.bind(false))
     control_layer.add_child(button)
@@ -622,7 +634,8 @@ func _add_hold_button(label_text: String, offset: Vector2, action: String, wide:
     control_layer.add_child(button)
 
 func _add_sprint_button() -> void:
-    var button := _create_action_button("»\nCORRER", Vector2(-104, -326), Vector2(64, 64))
+    var button := _create_action_button("CORRER", Vector2(-104, -326), Vector2(64, 64))
+    _set_action_icon(button, "sprint")
     button.button_down.connect(player.set_sprinting.bind(true))
     button.button_up.connect(player.set_sprinting.bind(false))
     control_layer.add_child(button)
@@ -837,6 +850,12 @@ func _load_game() -> void:
     var structures: Array = config.get_value("world", "structures", [])
     for entry in structures:
         _place_buildable(str(entry.get("kind", "Refugio")), entry.get("position", Vector3.ZERO))
+
+func _set_action_icon(button: Button, icon_name: String) -> void:
+    var icon_path := MOBILE_ICON_PATH + icon_name + ".svg"
+    if ResourceLoader.exists(icon_path):
+        button.icon = load(icon_path) as Texture2D
+        button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
 func _style_action_button(button: Button, round_button: bool = false) -> void:
     var normal := StyleBoxFlat.new()
