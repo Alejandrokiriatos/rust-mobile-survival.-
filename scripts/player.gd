@@ -72,7 +72,7 @@ func _physics_process(delta: float) -> void:
 
     var local_direction := Vector3(input_dir.x, 0.0, input_dir.y)
     var direction := (global_transform.basis * local_direction).normalized()
-    var target_speed := sprint_speed if sprinting or Input.is_action_pressed("sprint") else walk_speed
+    var target_speed := sprint_speed if sprinting else walk_speed
     var target_velocity := direction * target_speed
     var acceleration := ground_acceleration if is_on_floor() else air_acceleration
     velocity.x = move_toward(velocity.x, target_velocity.x, acceleration * delta)
