@@ -4,6 +4,9 @@ Juego original de supervivencia 3D para Android, inspirado en el género sandbox
 
 ## Estado de esta etapa
 
+- Terreno reconstruido con geometría de mayor resolución (16 sectores, 96 × 96 celdas por sector), relieve multicapa, crestas, costa irregular y color por vértice según altura e inclinación; no depende de una textura geométrica plana.
+- Vegetación 3D distribuida por pendiente y zonas ambientales, con instanciación múltiple para reducir llamadas de dibujo.
+
 - Cámara en primera persona y controles táctiles básicos.
 - Mundo insular de **512 x 512 metros**.
 - Terreno dividido en 16 sectores con colisión independiente.
@@ -42,7 +45,7 @@ GitHub Actions descarga Godot 4.4.1, importa los seis modelos GLB, comprueba los
 
 ## Rendimiento móvil
 
-El terreno usa 16 sectores de 64 x 64 celdas cada uno (aprox. 131.000 triángulos en total). La cantidad de vegetación, sombras y distancia de dibujado se ajustarán después de medir el rendimiento en el dispositivo.
+El terreno usa 16 sectores de 96 x 96 celdas cada uno (aprox. 295.000 triángulos en total). El relieve combina ruido de varias escalas y crestas, la línea costera se deforma para evitar una isla circular perfecta y el material usa color por vértice (playa, pradera, ladera rocosa y zona alta). La cantidad de vegetación, sombras y distancia de dibujado se ajustarán después de medir el rendimiento en el dispositivo.
 
 ## Sistemas de supervivencia
 
