@@ -349,23 +349,25 @@ func _make_hud() -> void:
     player.joystick = mobile_joystick
 
     # Grupo táctil circular: acciones separadas y alcanzables con el pulgar.
-    _add_control_button("SALTAR", Vector2(-184, -244), Vector2(66, 66), "jump", "hold", "jump")
+    # Acciones agrupadas en dos columnas, sin invadir la barra de objetos.
+    _add_control_button("SALTAR", Vector2(-100, -110), Vector2(68, 68), "jump", "hold", "jump")
     _add_sprint_button()
     _add_crouch_button()
-    interact_button = _create_action_button("USAR", Vector2(-104, -246), Vector2(68, 68))
+    interact_button = _create_action_button("", Vector2(-100, -190), Vector2(66, 66))
     _set_action_icon(interact_button, "use")
     interact_button.pressed.connect(_try_harvest)
     control_layer.add_child(interact_button)
-    var attack_button := _create_action_button("GOLPE", Vector2(-104, -164), Vector2(78, 78))
+    var attack_button := _create_action_button("", Vector2(-180, -190), Vector2(66, 66))
     _set_action_icon(attack_button, "attack")
     attack_button.pressed.connect(_try_attack)
     control_layer.add_child(attack_button)
 
-    var bag := _create_action_button("", Vector2(-82, -164), Vector2(58, 58))
+    # Inventario y fabricación se sitúan debajo del minimapa, en una fila separada.
+    var bag := _create_action_button("", Vector2(-116, 148), Vector2(50, 50), true)
     _set_action_icon(bag, "backpack")
     bag.pressed.connect(_toggle_inventory_panel)
     control_layer.add_child(bag)
-    var craft := _create_action_button("", Vector2(-82, -96), Vector2(58, 58))
+    var craft := _create_action_button("", Vector2(-58, 148), Vector2(50, 50), true)
     _set_action_icon(craft, "craft")
     craft.pressed.connect(_toggle_craft_panel)
     control_layer.add_child(craft)
@@ -463,7 +465,7 @@ func _create_action_button(label_text: String, offset: Vector2, button_size: Vec
     button.add_theme_font_size_override("font_size", 10 if compact else 11)
     button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
     button.expand_icon = true
-    _style_action_button(button, not compact)
+    _style_action_button(button, true)
     return button
 
 func _add_control_button(label_text: String, offset: Vector2, button_size: Vector2, action: String, _mode: String = "hold", icon_name: String = "") -> void:
@@ -593,7 +595,7 @@ func _style_hotbar_slot(button: Button, selected: bool) -> void:
     button.add_theme_color_override("font_pressed_color", Color(1.0, 0.88, 0.48))
 
 func _add_crouch_button() -> void:
-    var button := _create_action_button("AGACHAR", Vector2(-184, -164), Vector2(66, 66))
+    var button := _create_action_button("AGACHAR", Vector2(-180, -110), Vector2(66, 66))
     _set_action_icon(button, "crouch")
     button.button_down.connect(player.set_crouching.bind(true))
     button.button_up.connect(player.set_crouching.bind(false))
@@ -642,7 +644,7 @@ func _add_hold_button(label_text: String, offset: Vector2, action: String, wide:
     control_layer.add_child(button)
 
 func _add_sprint_button() -> void:
-    var button := _create_action_button("CORRER", Vector2(-104, -326), Vector2(64, 64))
+    var button := _create_action_button("CORRER", Vector2(-100, -270), Vector2(66, 66))
     _set_action_icon(button, "sprint")
     button.button_down.connect(player.set_sprinting.bind(true))
     button.button_up.connect(player.set_sprinting.bind(false))
