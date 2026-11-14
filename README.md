@@ -7,52 +7,44 @@ Juego original de supervivencia 3D para Android, inspirado en el género sandbox
 - Cámara en primera persona y controles táctiles básicos.
 - Mundo insular de **512 x 512 metros**.
 - Terreno dividido en 16 sectores con colisión independiente.
-- Elevaciones y costa generadas con ruido procedural.
+- Elevaciones, costa y agua generadas proceduralmente.
 - Recolección de madera, piedra y fibra.
-- Recursos visuales cargados desde el paquete 3D real **Kenney Nature Kit** (CC0).
+- Modelos 3D reales del **Kenney Nature Kit 2.1**, licencia CC0.
 - Renderizador Godot Compatibility / OpenGL para móviles.
-- El objetivo de rendimiento es 30 FPS; solo se podrá confirmar con pruebas reales en el TECNO BG6.
+- Objetivo de rendimiento: 30 FPS; debe medirse en el TECNO BG6.
 
-## Paquete 3D externo obligatorio
+## Recursos 3D incluidos
 
-Descarga gratis el **Kenney Nature Kit** desde su página oficial:
+El repositorio ya contiene seis modelos GLB originales del Kenney Nature Kit 2.1:
 
-https://kenney.nl/assets/nature-kit
+- tree_default.glb y tree_oak.glb
+- rock_largeA.glb y rock_smallA.glb
+- plant_bush.glb y grass.glb
 
-Licencia: CC0 1.0. Se permite modificarlo y usarlo incluso en proyectos comerciales. La atribución no es obligatoria.
+Son recursos externos reales, no mallas sustitutas creadas por el juego. La licencia CC0 permite su uso y modificación; la atribución no es obligatoria. Fuente oficial: https://kenney.nl/assets/nature-kit. El archivo de licencia y procedencia está en assets/kenney/nature-kit/License.txt.
 
-Descomprime el ZIP y copia el contenido de la carpeta "Models/GLTF format/" en:
-
-assets/kenney/nature-kit/
-
-Conserva también el License.txt original dentro de esa carpeta. El juego busca estos modelos reales del paquete:
-
-- tree_default.glb
-- tree_oak.glb
-- rock_largeA.glb
-- rock_smallA.glb
-- plant_bush.glb
-- plant_bushLarge.glb
-
-No se generan árboles, piedras ni arbustos geométricos de sustitución. Si falta el paquete, el proyecto muestra un aviso y deja desactivada la distribución de recursos 3D.
+Para ampliar el repertorio de naturaleza, se puede descargar el paquete completo desde la página oficial y añadir modelos GLB adicionales a esa misma carpeta.
 
 ## Abrir y probar
 
 1. Instala Godot 4.x.
-2. Descarga/clona el repositorio.
-3. Instala Kenney Nature Kit siguiendo las instrucciones anteriores.
-4. Abre project.godot en Godot.
-5. Ejecuta la escena principal.
+2. Descarga o clona este repositorio.
+3. Abre project.godot en Godot.
+4. Ejecuta la escena principal.
+
+## Validación automática
+
+GitHub Actions descarga Godot 4.4.1, importa los seis modelos GLB, comprueba los scripts y ejecuta la escena principal en modo headless. Esto verifica la carga y el arranque del proyecto; no sustituye una prueba gráfica ni una medición de FPS en el teléfono.
 
 ## Rendimiento móvil
 
-El terreno usa 16 sectores de 64 x 64 celdas cada uno (aprox. 131.000 triángulos en total). La densidad, cantidad de vegetación, sombras y distancia de dibujado se ajustarán después de medir el rendimiento en el teléfono.
+El terreno usa 16 sectores de 64 x 64 celdas cada uno (aprox. 131.000 triángulos en total). La cantidad de vegetación, sombras y distancia de dibujado se ajustarán después de medir el rendimiento en el dispositivo.
 
 ## Android
 
-La APK se generará después de terminar el bloque de código y superar la validación de la escena en Godot. La exportación requiere plantillas de Godot, JDK y Android SDK.
+La APK se generará después de validar el juego y configurar la exportación Android con plantillas de Godot, JDK y Android SDK.
 
 ## Licencias
 
 - Código del proyecto: MIT.
-- Naturaleza 3D: Kenney Nature Kit, CC0 1.0. Página oficial: https://kenney.nl/assets/nature-kit
+- Naturaleza 3D: Kenney Nature Kit 2.1, CC0 1.0.
