@@ -39,7 +39,8 @@ func harvest(player: SurvivalPlayer) -> String:
     if remaining <= 0:
         return "Agotado"
     remaining -= 1
-    player.collect(resource_type, 1)
+    var yield_amount := 2 if resource_type == "Madera" and player.axe_unlocked else 1
+    player.collect(resource_type, yield_amount)
     if remaining == 0:
         queue_free()
-    return "+1 " + resource_type
+    return "+%d %s" % [yield_amount, resource_type]
