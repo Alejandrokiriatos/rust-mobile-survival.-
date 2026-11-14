@@ -355,7 +355,7 @@ func _make_hud() -> void:
     interact_button.pressed.connect(_try_harvest)
     control_layer.add_child(interact_button)
     var attack_button := _create_action_button("✊\nGOLPE", Vector2(-104, -164), Vector2(78, 78))
-    attack_button.pressed.connect(_try_harvest)
+    attack_button.pressed.connect(_try_attack)
     control_layer.add_child(attack_button)
 
     var bag := _create_action_button("BOLSA", Vector2(-194, 150), Vector2(88, 38), true)
@@ -851,6 +851,20 @@ func _add_foliage_multimesh(model_path: String, per_chunk: int, min_scale: float
                     instance.material_override = source_mesh.material_override
                 add_child(instance)
     sample.free()
+
+func _try_attack() -> void:
+    if not is_instance_valid(player):
+        return
+    var from := player.camera.global_position
+    var to := from + -player.camera.global_transform.basis.z * 2.8
+    var query := PhysicsRayQueryParameters3D.create(from, to)
+    query.exclude = [player.get_rid()]
+    var hit := get_world_3d().direct_space_state.intersect_ray(query)
+    if hit and hit.collider.is_in_group("wild_animals") and hit.collider.has_method("take_damage"):
+        hit.collider.take_damage(20.0)
+        message.text = "Golpeaste al animal."
+    else:
+        message.text = "No hay ningún animal al alcance."
 
 func _try_harvest() -> void:
     if not is_instance_valid(player):
