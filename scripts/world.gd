@@ -426,29 +426,45 @@ func _make_hud() -> void:
 
     var crouch_button := _create_action_button("", Vector2(-166, -204), Vector2(68, 68))
     _set_action_icon(crouch_button, "crouch")
+    _add_button_caption(crouch_button, "AGACHAR")
+    crouch_button.tooltip_text = "Mantener para agacharse"
     crouch_button.button_down.connect(player.set_crouching.bind(true))
     crouch_button.button_up.connect(player.set_crouching.bind(false))
     control_layer.add_child(crouch_button)
 
-    _add_control_button("", Vector2(-88, -204), Vector2(68, 68), "jump", "hold", "jump")
+    var jump_button := _create_action_button("", Vector2(-88, -204), Vector2(68, 68))
+    _set_action_icon(jump_button, "jump")
+    _add_button_caption(jump_button, "SALTAR")
+    jump_button.tooltip_text = "Mantener para saltar"
+    jump_button.button_down.connect(player.mobile_action.bind("jump", true))
+    jump_button.button_up.connect(player.mobile_action.bind("jump", false))
+    control_layer.add_child(jump_button)
 
     interact_button = _create_action_button("", Vector2(-166, -126), Vector2(68, 68))
     _set_action_icon(interact_button, "use")
+    _add_button_caption(interact_button, "RECOGER")
+    interact_button.tooltip_text = "Recolectar recurso"
     interact_button.pressed.connect(_try_harvest)
     control_layer.add_child(interact_button)
 
     var attack_button := _create_action_button("", Vector2(-88, -126), Vector2(78, 78))
     _set_action_icon(attack_button, "attack")
+    _add_button_caption(attack_button, "ATACAR")
+    attack_button.tooltip_text = "Golpear / atacar"
     attack_button.pressed.connect(_try_attack)
     control_layer.add_child(attack_button)
 
     # Inventario y fabricación quedan como utilidades pequeñas bajo el minimapa.
     var bag := _create_action_button("", Vector2(-116, 148), Vector2(50, 50), true)
     _set_action_icon(bag, "backpack")
+    _add_button_caption(bag, "MOCHILA")
+    bag.tooltip_text = "Abrir inventario"
     bag.pressed.connect(_toggle_inventory_panel)
     control_layer.add_child(bag)
     var craft := _create_action_button("", Vector2(-58, 148), Vector2(50, 50), true)
     _set_action_icon(craft, "craft")
+    _add_button_caption(craft, "FABRICAR")
+    craft.tooltip_text = "Abrir fabricación"
     craft.pressed.connect(_toggle_craft_panel)
     control_layer.add_child(craft)
 
@@ -487,6 +503,28 @@ func _make_hud() -> void:
     _make_craft_panel()
     _make_inventory_panel()
 
+func _add_button_caption(button: Button, caption: String) -> void:
+    # Etiqueta siempre visible: los iconos no dependen del reconocimiento del jugador.
+    var tag := Label.new()
+    tag.text = caption
+    tag.anchor_left = 0.0
+    tag.anchor_right = 1.0
+    tag.anchor_top = 1.0
+    tag.anchor_bottom = 1.0
+    tag.offset_left = 1.0
+    tag.offset_right = -1.0
+    tag.offset_top = -19.0
+    tag.offset_bottom = -2.0
+    tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    tag.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+    tag.add_theme_font_size_override("font_size", 9)
+    tag.add_theme_color_override("font_color", Color(1.0, 0.98, 0.91))
+    tag.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 1.0))
+    tag.add_theme_constant_override("shadow_offset_x", 1)
+    tag.add_theme_constant_override("shadow_offset_y", 1)
+    tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    button.add_child(tag)
+
 func _make_bar(parent: VBoxContainer, caption: String, tint: Color) -> ProgressBar:
     var row := HBoxContainer.new()
     row.add_theme_constant_override("separation", 6)
@@ -495,14 +533,14 @@ func _make_bar(parent: VBoxContainer, caption: String, tint: Color) -> ProgressB
     label.text = caption
     label.custom_minimum_size = Vector2(82, 0)
     label.add_theme_font_size_override("font_size", 10)
-    label.add_theme_color_override("font_color", Color(0.86, 0.90, 0.86))
+    label.add_theme_color_override("font_color", Color(1.0, 0.96, 0.88) if caption == "VIDA" else Color(0.91, 0.94, 0.93))
     row.add_child(label)
     var bar := ProgressBar.new()
     bar.min_value = 0
     bar.max_value = 100
     bar.value = 100
     bar.show_percentage = true
-    bar.custom_minimum_size = Vector2(128, 15)
+    bar.custom_minimum_size = Vector2(128, 19 if caption == "VIDA" else 16)
     bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
     bar.add_theme_font_size_override("font_size", 9)
     bar.add_theme_color_override("font_color", Color.WHITE)
@@ -514,7 +552,9 @@ func _make_bar(parent: VBoxContainer, caption: String, tint: Color) -> ProgressB
     bar.add_theme_stylebox_override("background", track)
     var fill := StyleBoxFlat.new()
     fill.bg_color = tint
-    fill.set_corner_radius_all(3)
+    fill.set_corner_radius_all(4)
+    fill.border_color = tint.lightened(0.28)
+    fill.set_border_width_all(1)
     fill.shadow_color = tint.darkened(0.45)
     fill.shadow_size = 2
     bar.add_theme_stylebox_override("fill", fill)
@@ -545,6 +585,8 @@ func _create_action_button(label_text: String, offset: Vector2, button_size: Vec
     button.add_theme_font_size_override("font_size", 10 if compact else 11)
     button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
     button.expand_icon = true
+    button.focus_mode = Control.FOCUS_NONE
+    button.mouse_filter = Control.MOUSE_FILTER_STOP
     _style_action_button(button, true)
     return button
 
