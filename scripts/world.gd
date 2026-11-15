@@ -103,6 +103,7 @@ const RESOURCE_SCRIPT = preload("res://scripts/resource_node.gd")
 const JOYSTICK_SCRIPT = preload("res://scripts/mobile_joystick.gd")
 const ANIMAL_SCRIPT = preload("res://scripts/wild_animal.gd")
 const BUILDABLE_SCRIPT = preload("res://scripts/survival_buildable.gd")
+const TOOL_MODELS = preload("res://scripts/tool_models.gd")
 const WORLD_SIZE := 512.0
 const CHUNK_COUNT := 4
 const CHUNK_SIZE := WORLD_SIZE / CHUNK_COUNT
@@ -146,6 +147,7 @@ var inventory_item_labels: Dictionary = {}
 var hotbar_slots: Array[Button] = []
 var selected_hotbar_index := 0
 var attack_cooldown := 0.0
+var held_tool_root: Node3D
 var territory_cabinet: SurvivalBuildable
 var territory_label: Label
 const TERRITORY_RADIUS := 28.0
@@ -588,6 +590,12 @@ func _make_player() -> void:
     # Orienta al jugador hacia el interior de la isla desde la costa.
     player.rotation.y = atan2(spawn.x, spawn.z)
     add_child(player)
+    held_tool_root = Node3D.new()
+    held_tool_root.name = "HeldToolMount"
+    held_tool_root.position = Vector3(0.42, -0.38, -0.72)
+    held_tool_root.rotation_degrees = Vector3(-18.0, -24.0, -12.0)
+    player.camera.add_child(held_tool_root)
+    _refresh_held_tool()
 
 func _make_hud() -> void:
     control_layer = CanvasLayer.new()
@@ -724,8 +732,8 @@ func _make_hud() -> void:
     hotbar.add_theme_constant_override("separation", 6)
     hotbar.alignment = BoxContainer.ALIGNMENT_CENTER
     hotbar_panel.add_child(hotbar)
-    var slot_names := ["PIEDRA", "HACHA", "PICO", "MADERA", "FOGATA", "VACÍO"]
-    var slot_models := ["resource-stone.glb", "tool-axe.glb", "tool-pickaxe.glb", "resource-wood.glb", "campfire-pit.glb", ""]
+    var slot_names := ["PIEDRA", "HACHA", "PICO", "MADERA", "FOGATA", "ANTORCHA"]
+    var slot_models := ["", "", "", "resource-wood.glb", "campfire-pit.glb", ""]
     for i in range(6):
         var slot := Button.new()
         slot.text = ""
@@ -856,9 +864,11 @@ func _select_hotbar_slot(index: int) -> void:
     selected_hotbar_index = index
     for i in range(hotbar_slots.size()):
         _style_hotbar_slot(hotbar_slots[i], i == selected_hotbar_index)
-    var selected_names := ["PIEDRA", "HACHA", "PICO", "MADERA", "FOGATA", "VACÍO"]
+    var selected_names := ["PIEDRA", "HACHA", "PICO", "MADERA", "FOGATA", "ANTORCHA"]
+    _refresh_held_tool()
     if is_instance_valid(message):
-        message.text = "Seleccionado: " + selected_names[index]
+        var locked := (index == 1 and not player.axe_unlocked) or (index == 2 and not player.pickaxe_unlocked) or (index == 5 and not player.torch_unlocked)
+        message.text = selected_names[index] + (" · FABRÍCALA PARA EQUIPARLA" if locked else " equipada")
 
 func _make_hotbar_preview(slot: Button, model_file: String, item_name: String, slot_number: int) -> void:
     var preview := SubViewportContainer.new()
@@ -882,7 +892,27 @@ func _make_hotbar_preview(slot: Button, model_file: String, item_name: String, s
     viewport.render_target_update_mode = SubViewport.UPDATE_ONCE
     preview.add_child(viewport)
 
-    if not model_file.is_empty():
+    var procedural_kind := ["stone", "axe", "pickaxe", "", "", "torch"][slot_number - 1]
+    if not procedural_kind.is_empty():
+        var model := TOOL_MODELS.create_display_tool(procedural_kind, 0.82)
+        viewport.add_child(model)
+        var camera := Camera3D.new()
+        camera.position = Vector3(1.45, 1.15, 1.75)
+        camera.projection = Camera3D.PROJECTION_ORTHOGONAL
+        camera.size = 1.62
+        viewport.add_child(camera)
+        camera.look_at(Vector3.ZERO, Vector3.UP)
+        camera.current = true
+        var light := DirectionalLight3D.new()
+        light.rotation_degrees = Vector3(-42, -28, 0)
+        light.light_energy = 1.6
+        viewport.add_child(light)
+        var fill := OmniLight3D.new()
+        fill.position = Vector3(-1.0, 1.0, 0.8)
+        fill.light_energy = 0.65
+        fill.omni_range = 4.0
+        viewport.add_child(fill)
+    elif not model_file.is_empty():
         var model_path := "res://assets/kenney/survival-kit/" + model_file
         if ResourceLoader.exists(model_path):
             var packed := load(model_path) as PackedScene
@@ -1123,6 +1153,8 @@ func _make_craft_panel() -> void:
     scroll.add_child(list)
     _add_craft_option(list, "ARMARIO PRINCIPAL  ·  8 MADERA + 4 PIEDRA + 4 FIBRA", _craft_territory_cabinet)
     _add_craft_option(list, "HACHA  ·  3 MADERA + 2 PIEDRA", _craft_axe)
+    _add_craft_option(list, "PICO  ·  3 MADERA + 3 PIEDRA", _craft_pickaxe)
+    _add_craft_option(list, "ANTORCHA  ·  2 MADERA + 1 FIBRA", _craft_torch)
     _add_craft_option(list, "REFUGIO  ·  12 MADERA + 6 FIBRA", _craft_shelter)
     _add_craft_option(list, "FOGATA  ·  5 MADERA + 3 PIEDRA", _craft_campfire)
     _add_craft_option(list, "RACIONES  ·  1 MADERA + 3 FIBRA", _craft_rations)
@@ -1159,9 +1191,35 @@ func _craft_axe() -> void:
     elif _has_cost(3, 2, 0):
         _pay_cost(3, 2, 0)
         player.axe_unlocked = true
-        message.text = "Hacha fabricada: recolectas el doble de madera."
+        message.text = "Hacha de piedra fabricada y disponible en la ranura 2."
+        if selected_hotbar_index == 1:
+            _refresh_held_tool()
     else:
         message.text = "Necesitas 3 madera y 2 piedra."
+
+func _craft_pickaxe() -> void:
+    if player.pickaxe_unlocked:
+        message.text = "Ya tienes un pico."
+    elif _has_cost(3, 3, 0):
+        _pay_cost(3, 3, 0)
+        player.pickaxe_unlocked = true
+        message.text = "Pico de piedra fabricado: mejora la extracción de roca."
+        if selected_hotbar_index == 2:
+            _refresh_held_tool()
+    else:
+        message.text = "Necesitas 3 madera y 3 piedra."
+
+func _craft_torch() -> void:
+    if player.torch_unlocked:
+        message.text = "Ya tienes una antorcha."
+    elif _has_cost(2, 0, 1):
+        _pay_cost(2, 0, 1)
+        player.torch_unlocked = true
+        message.text = "Antorcha fabricada. Selecciona la ranura 6 para iluminar."
+        if selected_hotbar_index == 5:
+            _refresh_held_tool()
+    else:
+        message.text = "Necesitas 2 madera y 1 fibra."
 
 func _craft_territory_cabinet() -> void:
     if is_instance_valid(territory_cabinet):
@@ -1365,6 +1423,8 @@ func _save_game(show_message: bool = true) -> void:
     config.set_value("player", "stamina", player.stamina)
     config.set_value("player", "inventory", player.inventory)
     config.set_value("player", "axe_unlocked", player.axe_unlocked)
+    config.set_value("player", "pickaxe_unlocked", player.pickaxe_unlocked)
+    config.set_value("player", "torch_unlocked", player.torch_unlocked)
     config.set_value("world", "day_clock", day_clock)
     config.set_value("world", "resource_remaining", resource_remaining_state)
     config.set_value("world", "depleted_resources", depleted_resource_ids.keys())
@@ -1391,6 +1451,9 @@ func _load_game() -> void:
     for key in saved_inventory:
         player.inventory[key] = saved_inventory[key]
     player.axe_unlocked = bool(config.get_value("player", "axe_unlocked", false))
+    player.pickaxe_unlocked = bool(config.get_value("player", "pickaxe_unlocked", false))
+    player.torch_unlocked = bool(config.get_value("player", "torch_unlocked", false))
+    _refresh_held_tool()
     day_clock = float(config.get_value("world", "day_clock", day_clock))
     resource_remaining_state = config.get_value("world", "resource_remaining", {})
     depleted_resource_ids.clear()
@@ -1642,6 +1705,30 @@ func _add_foliage_multimesh(model_path: String, per_chunk: int, min_scale: float
                 add_child(instance)
     sample.free()
 
+func _refresh_held_tool() -> void:
+    if not is_instance_valid(held_tool_root):
+        return
+    for child in held_tool_root.get_children():
+        child.queue_free()
+    var kind := ""
+    match selected_hotbar_index:
+        0: kind = "stone"
+        1:
+            if player.axe_unlocked:
+                kind = "axe"
+        2:
+            if player.pickaxe_unlocked:
+                kind = "pickaxe"
+        5:
+            if player.torch_unlocked:
+                kind = "torch"
+    if kind.is_empty():
+        return
+    var model := TOOL_MODELS.create_tool(kind)
+    model.scale = Vector3.ONE * 0.34
+    model.rotation_degrees = Vector3(-8.0, 0.0, -8.0)
+    held_tool_root.add_child(model)
+
 func show_message(text_value: String) -> void:
     if is_instance_valid(message):
         message.text = text_value
@@ -1652,12 +1739,25 @@ func _try_attack() -> void:
     if attack_cooldown > 0.0:
         show_message("Espera %.1f s para golpear." % attack_cooldown)
         return
-    var weapon_damage := [12.0, 35.0 if player.axe_unlocked else 16.0, 22.0, 8.0, 0.0, 5.0]
+    if selected_hotbar_index == 1 and not player.axe_unlocked:
+        show_message("Fabrica un hacha para utilizarla.")
+        return
+    if selected_hotbar_index == 2 and not player.pickaxe_unlocked:
+        show_message("Fabrica un pico para utilizarlo.")
+        return
+    if selected_hotbar_index == 5 and not player.torch_unlocked:
+        show_message("Fabrica una antorcha para equiparla.")
+        return
+    var weapon_damage := [12.0, 35.0, 27.0, 8.0, 0.0, 4.0]
     var damage_value: float = weapon_damage[selected_hotbar_index]
     if damage_value <= 0.0:
         show_message("La fogata no es un arma. Selecciona una herramienta.")
         return
     attack_cooldown = 0.48
+    if is_instance_valid(held_tool_root):
+        var swing := create_tween()
+        swing.tween_property(held_tool_root, "rotation_degrees", Vector3(28.0, -8.0, 34.0), 0.10)
+        swing.tween_property(held_tool_root, "rotation_degrees", Vector3(-18.0, -24.0, -12.0), 0.16)
     var from := player.camera.global_position
     var to := from + -player.camera.global_transform.basis.z * 3.2
     var query := PhysicsRayQueryParameters3D.create(from, to)
@@ -1679,7 +1779,27 @@ func _try_harvest() -> void:
     query.exclude = [player.get_rid()]
     var hit := get_world_3d().direct_space_state.intersect_ray(query)
     if hit and hit.collider.is_in_group("harvestable"):
-        message.text = hit.collider.harvest(player)
+        var node: ResourceNode = hit.collider
+        if node.resource_type == "Madera" and selected_hotbar_index == 1 and not player.axe_unlocked:
+            message.text = "Fabrica un hacha primero."
+            return
+        if node.resource_type == "Piedra" and selected_hotbar_index == 2 and not player.pickaxe_unlocked:
+            message.text = "Fabrica un pico primero."
+            return
+        if node.resource_type == "Madera" and selected_hotbar_index == 2:
+            message.text = "El pico no sirve para talar. Equipa el hacha."
+            return
+        if node.resource_type == "Piedra" and selected_hotbar_index == 1:
+            message.text = "El hacha no sirve para extraer roca. Equipa el pico."
+            return
+        var result := node.harvest(player)
+        if node.resource_type == "Madera" and selected_hotbar_index == 1:
+            player.inventory["Madera"] = int(player.inventory.get("Madera", 0)) + 1
+            result += " · bonus hacha"
+        elif node.resource_type == "Piedra" and selected_hotbar_index == 2:
+            player.inventory["Piedra"] = int(player.inventory.get("Piedra", 0)) + 1
+            result += " · bonus pico"
+        message.text = result
     else:
         message.text = "Acércate a un árbol, roca o arbusto y apunta."
 
