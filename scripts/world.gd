@@ -172,7 +172,7 @@ func _process(delta: float) -> void:
     if is_instance_valid(compass_label):
         var heading := fposmod(rad_to_deg(player.rotation.y) + 360.0, 360.0)
         var directions := ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
-        compass_label.text = "%s   %03d°" % [directions[int(roundi(heading / 45.0)) % 8], roundi(heading)]
+        compass_label.text = "N     NE     E     SE     S     SW     W     NW\\n▲  %s  ·  %03d°" % [directions[int(roundi(heading / 45.0)) % 8], roundi(heading)]
     if is_instance_valid(minimap_coords):
         minimap_coords.text = "X %d  Z %d" % [roundi(player.global_position.x), roundi(player.global_position.z)]
     for item_name in inventory_item_labels:
@@ -590,14 +590,16 @@ func _make_hud() -> void:
     var compass_panel := PanelContainer.new()
     compass_panel.anchor_left = 0.5
     compass_panel.anchor_right = 0.5
-    compass_panel.position = Vector2(-76, 12)
-    compass_panel.custom_minimum_size = Vector2(152, 34)
+    compass_panel.position = Vector2(-180, 10)
+    compass_panel.custom_minimum_size = Vector2(360, 58)
     _style_action_panel(compass_panel)
     control_layer.add_child(compass_panel)
     compass_label = Label.new()
     compass_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
     compass_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-    compass_label.add_theme_font_size_override("font_size", 15)
+    compass_label.add_theme_font_size_override("font_size", 14)
+    compass_label.add_theme_color_override("font_color", Color(0.96, 0.94, 0.82))
+    compass_label.text = "N     NE     E     SE     S     SW     W     NW\\n▲  RUMBO 000°"
     compass_panel.add_child(compass_label)
 
     day_label = Label.new()
@@ -652,7 +654,7 @@ func _make_hud() -> void:
     # ataque dominante y acciones secundarias agrupadas en la esquina derecha.
     _add_sprint_button()
 
-    var crouch_button := _create_action_button("", Vector2(-166, -204), Vector2(68, 68))
+    var crouch_button := _create_action_button("", Vector2(-184, -216), Vector2(72, 72))
     _set_action_icon(crouch_button, "crouch")
     _add_button_caption(crouch_button, "AGACHAR")
     crouch_button.tooltip_text = "Mantener para agacharse"
@@ -660,7 +662,7 @@ func _make_hud() -> void:
     crouch_button.button_up.connect(player.set_crouching.bind(false))
     control_layer.add_child(crouch_button)
 
-    var jump_button := _create_action_button("", Vector2(-88, -204), Vector2(68, 68))
+    var jump_button := _create_action_button("", Vector2(-98, -216), Vector2(76, 76))
     _set_action_icon(jump_button, "jump")
     _add_button_caption(jump_button, "SALTAR")
     jump_button.tooltip_text = "Mantener para saltar"
@@ -668,14 +670,14 @@ func _make_hud() -> void:
     jump_button.button_up.connect(player.mobile_action.bind("jump", false))
     control_layer.add_child(jump_button)
 
-    interact_button = _create_action_button("", Vector2(-166, -126), Vector2(68, 68))
+    interact_button = _create_action_button("", Vector2(-184, -132), Vector2(72, 72))
     _set_action_icon(interact_button, "use")
     _add_button_caption(interact_button, "RECOGER")
     interact_button.tooltip_text = "Recolectar recurso"
     interact_button.pressed.connect(_try_harvest)
     control_layer.add_child(interact_button)
 
-    var attack_button := _create_action_button("", Vector2(-88, -126), Vector2(78, 78))
+    var attack_button := _create_action_button("", Vector2(-98, -128), Vector2(88, 88))
     _set_action_icon(attack_button, "attack")
     _add_button_caption(attack_button, "ATACAR")
     attack_button.tooltip_text = "Golpear / atacar"
@@ -683,15 +685,17 @@ func _make_hud() -> void:
     control_layer.add_child(attack_button)
 
     # Inventario y fabricación quedan como utilidades pequeñas bajo el minimapa.
-    var bag := _create_action_button("", Vector2(-116, 148), Vector2(50, 50), true)
+    var bag := _create_action_button("", Vector2(-154, 142), Vector2(68, 62), true)
     _set_action_icon(bag, "backpack")
     _add_button_caption(bag, "MOCHILA")
+    bag.tooltip_text = "Abrir mochila e objetos"
     bag.tooltip_text = "Abrir inventario"
     bag.pressed.connect(_toggle_inventory_panel)
     control_layer.add_child(bag)
-    var craft := _create_action_button("", Vector2(-58, 148), Vector2(50, 50), true)
+    var craft := _create_action_button("", Vector2(-78, 142), Vector2(68, 62), true)
     _set_action_icon(craft, "craft")
     _add_button_caption(craft, "FABRICAR")
+    craft.tooltip_text = "Abrir mesa de fabricación"
     craft.tooltip_text = "Abrir fabricación"
     craft.pressed.connect(_toggle_craft_panel)
     control_layer.add_child(craft)
@@ -702,12 +706,12 @@ func _make_hud() -> void:
     hotbar_panel.anchor_right = 0.5
     hotbar_panel.anchor_top = 1.0
     hotbar_panel.anchor_bottom = 1.0
-    hotbar_panel.position = Vector2(-198, -72)
-    hotbar_panel.custom_minimum_size = Vector2(396, 64)
+    hotbar_panel.position = Vector2(-258, -88)
+    hotbar_panel.custom_minimum_size = Vector2(516, 80)
     _style_hotbar_tray(hotbar_panel)
     control_layer.add_child(hotbar_panel)
     var hotbar := HBoxContainer.new()
-    hotbar.add_theme_constant_override("separation", 4)
+    hotbar.add_theme_constant_override("separation", 7)
     hotbar.alignment = BoxContainer.ALIGNMENT_CENTER
     hotbar_panel.add_child(hotbar)
     var slot_names := ["PIEDRA", "HACHA", "PICO", "MADERA", "FOGATA", "VACÍO"]
@@ -722,7 +726,7 @@ func _make_hud() -> void:
     for i in range(6):
         var slot := Button.new()
         slot.text = ""
-        slot.custom_minimum_size = Vector2(59, 56)
+        slot.custom_minimum_size = Vector2(78, 70)
         slot.clip_contents = true
         _style_hotbar_slot(slot, i == selected_hotbar_index)
         hotbar.add_child(slot)
@@ -841,10 +845,10 @@ func _select_hotbar_slot(index: int) -> void:
 func _make_hotbar_preview(slot: Button, model_file: String, item_name: String, slot_number: int) -> void:
     var preview := SubViewportContainer.new()
     preview.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-    preview.offset_left = 2
-    preview.offset_top = 2
-    preview.offset_right = -2
-    preview.offset_bottom = -15
+    preview.offset_left = 3
+    preview.offset_top = 3
+    preview.offset_right = -3
+    preview.offset_bottom = -19
     preview.stretch = true
     preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
     slot.add_child(preview)
@@ -905,11 +909,11 @@ func _make_hotbar_preview(slot: Button, model_file: String, item_name: String, s
     caption.anchor_right = 1.0
     caption.anchor_top = 1.0
     caption.anchor_bottom = 1.0
-    caption.offset_top = -14
-    caption.offset_bottom = -1
+    caption.offset_top = -18
+    caption.offset_bottom = -2
     caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
     caption.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-    caption.add_theme_font_size_override("font_size", 8)
+    caption.add_theme_font_size_override("font_size", 9)
     caption.add_theme_color_override("font_color", Color(0.96, 0.96, 0.89))
     caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
     slot.add_child(caption)
