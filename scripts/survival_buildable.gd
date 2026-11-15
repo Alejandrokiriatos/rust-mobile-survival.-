@@ -2,6 +2,7 @@ extends StaticBody3D
 class_name SurvivalBuildable
 
 var build_kind := "Refugio"
+var owner_id := "local_player"
 
 func _ready() -> void:
     add_to_group("buildables")
@@ -42,6 +43,19 @@ func _create_geometry() -> void:
         light.light_energy = 1.2
         light.omni_range = 7.0
         add_child(light)
+    elif build_kind == "Armario principal":
+        # Armario de herramientas: núcleo físico y visible que representa el privilegio de construcción.
+        _add_box(Vector3(1.05, 1.25, 0.82), Vector3(0, 0.68, 0), Color(0.30, 0.22, 0.13))
+        _add_box(Vector3(1.12, 0.12, 0.88), Vector3(0, 1.36, 0), Color(0.16, 0.19, 0.18))
+        _add_box(Vector3(0.72, 0.78, 0.045), Vector3(0, 0.72, 0.435), Color(0.12, 0.16, 0.15))
+        _add_box(Vector3(0.12, 0.18, 0.08), Vector3(0.34, 0.72, 0.49), Color(0.78, 0.62, 0.24))
+        var marker := Label3D.new()
+        marker.text = "TC"
+        marker.position = Vector3(0, 1.05, 0.49)
+        marker.font_size = 48
+        marker.pixel_size = 0.006
+        marker.modulate = Color(1.0, 0.86, 0.42)
+        add_child(marker)
     else:
         # Refugio compacto de tablones estilizados, construido con piezas económicas.
         _add_box(Vector3(3.2, 0.18, 2.8), Vector3(0, 0.12, 0), Color(0.30, 0.19, 0.10))
