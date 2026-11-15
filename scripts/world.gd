@@ -63,10 +63,10 @@ class MinimapRadar extends Control:
                 else:
                     var biome: float = world_ref.biome_noise.get_noise_2d(wx, wz)
                     color = Color(0.24, 0.39, 0.20).lerp(Color(0.38, 0.46, 0.25), clampf(biome * 0.8 + 0.5, 0.0, 1.0))
-                    var desert := smoothstep(-0.20, 0.48, -wx / (world_ref.WORLD_SIZE * 0.5) + biome * 0.42)
-                    var snow := smoothstep(-0.12, 0.52, wz / (world_ref.WORLD_SIZE * 0.5) + biome * 0.38) * (1.0 - desert)
-                    color = color.lerp(Color(0.72, 0.57, 0.34), desert * 0.92)
-                    color = color.lerp(Color(0.82, 0.88, 0.93), snow * 0.94)
+                    var desert := smoothstep(-0.35, 0.25, -wx / (world_ref.WORLD_SIZE * 0.5) + biome * 0.35)
+                    var snow := smoothstep(-0.30, 0.28, wz / (world_ref.WORLD_SIZE * 0.5) + biome * 0.32) * (1.0 - desert)
+                    color = color.lerp(Color(0.80, 0.58, 0.31), desert * 0.98)
+                    color = color.lerp(Color(0.86, 0.92, 0.98), snow * 0.98)
                     if height > 19.0:
                         color = color.lerp(Color(0.40, 0.42, 0.38), clampf((height - 19.0) / 13.0, 0.0, 0.55))
                 var normal: Vector3 = world_ref._terrain_normal_at(wx, wz)
@@ -118,7 +118,7 @@ const CHUNK_COUNT := 4
 const CHUNK_SIZE := WORLD_SIZE / CHUNK_COUNT
 const CHUNK_SEGMENTS := 96
 const WATER_LEVEL := -2.5
-const RESOURCE_COUNTS := {"Madera": 150, "Piedra": 80, "Fibra": 130}
+const RESOURCE_COUNTS := {"Madera": 420, "Piedra": 80, "Fibra": 130}
 const NATURE_PATH := "res://assets/kenney/nature-kit/"
 const NATURE_MEGA_PATH := "res://assets/quaternius/stylized-nature-megakit/"
 const MOBILE_ICON_PATH := "res://assets/ui/mobile-controls/"
@@ -173,7 +173,7 @@ func _ready() -> void:
     _make_player()
     _make_hud()
     _scatter_resources()
-    _scatter_ground_cover()
+    # La hierba procedural queda desactivada temporalmente; se retomará después.
     _spawn_wildlife()
     _load_game()
 
@@ -250,7 +250,7 @@ func _configure_noise() -> void:
     biome_noise.fractal_octaves = 3
     forest_noise.seed = 88421
     forest_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX
-    forest_noise.frequency = 0.014
+    forest_noise.frequency = 0.009
     forest_noise.fractal_octaves = 3
     forest_noise.fractal_gain = 0.55
 
@@ -423,8 +423,8 @@ void fragment() {
     sand = mix(vec3(0.48, 0.40, 0.27), sand, 0.28);
     rock = mix(vec3(0.27, 0.28, 0.27), rock, 0.34);
     float biome_mix = smoothstep(0.34, 0.72, COLOR.r) * 0.50;
-    float desert = smoothstep(0.48, 0.82, -p.x / 384.0 + (COLOR.r - 0.5) * 0.65);
-    float snow = smoothstep(0.42, 0.80, p.z / 384.0 + (COLOR.r - 0.5) * 0.55) * (1.0 - desert);
+    float desert = smoothstep(0.02, 0.48, -p.x / 384.0 + (COLOR.r - 0.5) * 0.55);
+    float snow = smoothstep(0.02, 0.48, p.z / 384.0 + (COLOR.r - 0.5) * 0.48) * (1.0 - desert);
     float beach_mix = 1.0 - smoothstep(-1.2, 4.2, height);
     float highland_mix = smoothstep(21.0, 35.0, height) * 0.42;
     float rock_mix = max(smoothstep(0.20, 0.62, slope), highland_mix);
