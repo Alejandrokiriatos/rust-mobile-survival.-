@@ -240,6 +240,8 @@ func _make_environment() -> void:
     sun_light.rotation_degrees = Vector3(-48, -32, 0)
     sun_light.light_energy = 0.92
     sun_light.shadow_enabled = true
+    sun_light.shadow_bias = 0.12
+    sun_light.shadow_normal_bias = 1.8
     sun_light.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
     sun_light.directional_shadow_max_distance = 65.0
     sun_light.directional_shadow_fade_start = 0.8
@@ -414,7 +416,10 @@ func _make_terrain_chunk(chunk_x: int, chunk_z: int, material: ShaderMaterial) -
     var terrain := MeshInstance3D.new()
     terrain.name = "Terrain_%02d_%02d" % [chunk_x, chunk_z]
     terrain.mesh = mesh
-    terrain.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+    # El terreno no debe proyectar sombras sobre sí mismo: en las laderas
+    # provocaba bandas oscuras repetidas (shadow acne) visibles a distancia.
+    # La vegetación y las estructuras sí conservan sus sombras sobre el suelo.
+    terrain.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
     add_child(terrain)
     # Colisión de altura dedicada: evita que el jugador atraviese la malla visual
     # y es más eficiente que un trimesh cóncavo para un terreno regular.
