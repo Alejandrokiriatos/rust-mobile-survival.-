@@ -114,6 +114,7 @@ var compass_label: Label
 var minimap_coords: Label
 var inventory_panel: PanelContainer
 var inventory_summary: Label
+var inventory_item_labels: Dictionary = {}
 var hotbar_slots: Array[Button] = []
 var selected_hotbar_index := 0
 var attack_cooldown := 0.0
@@ -174,8 +175,10 @@ func _process(delta: float) -> void:
         compass_label.text = "%s   %03d°" % [directions[int(roundi(heading / 45.0)) % 8], roundi(heading)]
     if is_instance_valid(minimap_coords):
         minimap_coords.text = "X %d  Z %d" % [roundi(player.global_position.x), roundi(player.global_position.z)]
-    if is_instance_valid(inventory_summary):
-        inventory_summary.text = "MADERA     %03d\nPIEDRA       %03d\nFIBRA          %03d\nCOMIDA      %03d\nAGUA           %03d" % [player.inventory["Madera"], player.inventory["Piedra"], player.inventory["Fibra"], player.inventory["Comida"], player.inventory["Agua"]]
+    for item_name in inventory_item_labels:
+        var item_label: Label = inventory_item_labels[item_name]
+        if is_instance_valid(item_label):
+            item_label.text = "%s\\n%d" % [str(item_name).to_upper(), int(player.inventory.get(item_name, 0))]
     if is_instance_valid(day_label):
         day_label.text = "%s · DÍA %d" % [_time_of_day_name(), int(day_clock) + 1]
     if is_instance_valid(territory_label):
@@ -962,30 +965,95 @@ func _add_crouch_button() -> void:
     control_layer.add_child(button)
 
 func _make_inventory_panel() -> void:
+    # Inventario amplio con celdas independientes: cada recurso ocupa su propio contenedor.
     inventory_panel = PanelContainer.new()
-    inventory_panel.anchor_left = 0.5
-    inventory_panel.anchor_right = 0.5
-    inventory_panel.anchor_top = 0.5
-    inventory_panel.anchor_bottom = 0.5
-    inventory_panel.position = Vector2(-132, -142)
-    inventory_panel.custom_minimum_size = Vector2(264, 284)
+    inventory_panel.anchor_left = 0.10
+    inventory_panel.anchor_right = 0.90
+    inventory_panel.anchor_top = 0.12
+    inventory_panel.anchor_bottom = 0.88
     inventory_panel.visible = false
-    _style_action_panel(inventory_panel)
+    inventory_panel.z_index = 20
+    var panel_style := StyleBoxFlat.new()
+    panel_style.bg_color = Color(0.025, 0.055, 0.045, 0.97)
+    panel_style.border_color = Color(0.72, 0.82, 0.70, 0.86)
+    panel_style.set_border_width_all(2)
+    panel_style.set_corner_radius_all(14)
+    panel_style.set_content_margin_all(16)
+    inventory_panel.add_theme_stylebox_override("panel", panel_style)
+
     var column := VBoxContainer.new()
+    column.add_theme_constant_override("separation", 12)
     inventory_panel.add_child(column)
     var title := Label.new()
-    title.text = "MOCHILA  /  RECURSOS"
+    title.text = "MOCHILA  /  INVENTARIO"
     title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-    title.add_theme_font_size_override("font_size", 16)
+    title.add_theme_font_size_override("font_size", 20)
     title.add_theme_color_override("font_color", Color(0.91, 0.94, 0.84))
     column.add_child(title)
-    inventory_summary = Label.new()
-    inventory_summary.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-    inventory_summary.add_theme_font_size_override("font_size", 15)
-    inventory_summary.add_theme_color_override("font_color", Color(0.95, 0.93, 0.83))
-    column.add_child(inventory_summary)
+    var subtitle := Label.new()
+    subtitle.text = "Tus recursos y provisiones · Las cantidades se actualizan al recoger, fabricar, comer o beber"
+    subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+    subtitle.add_theme_font_size_override("font_size", 12)
+    subtitle.add_theme_color_override("font_color", Color(0.72, 0.79, 0.70))
+    column.add_child(subtitle)
+
+    var scroll := ScrollContainer.new()
+    scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+    scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+    column.add_child(scroll)
+    var grid := GridContainer.new()
+    grid.columns = 2
+    grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    grid.add_theme_constant_override("h_separation", 10)
+    grid.add_theme_constant_override("v_separation", 10)
+    scroll.add_child(grid)
+
+    var item_data := [
+        {"name": "Madera", "icon": "■", "description": "Material para herramientas y construcción."},
+        {"name": "Piedra", "icon": "◆", "description": "Recurso para herramientas, fogatas y bases."},
+        {"name": "Fibra", "icon": "✳", "description": "Material vegetal para fabricar y preparar raciones."},
+        {"name": "Comida", "icon": "●", "description": "Provisiones para recuperar el hambre."},
+        {"name": "Agua", "icon": "≈", "description": "Reserva de agua para mantenerte hidratado."}
+    ]
+    inventory_item_labels.clear()
+    for item in item_data:
+        var card := PanelContainer.new()
+        card.custom_minimum_size = Vector2(0, 104)
+        var card_style := StyleBoxFlat.new()
+        card_style.bg_color = Color(0.10, 0.14, 0.12, 0.92)
+        card_style.border_color = Color(0.43, 0.56, 0.45, 0.78)
+        card_style.set_border_width_all(1)
+        card_style.set_corner_radius_all(9)
+        card_style.set_content_margin_all(10)
+        card.add_theme_stylebox_override("panel", card_style)
+        grid.add_child(card)
+
+        var card_column := VBoxContainer.new()
+        card_column.add_theme_constant_override("separation", 4)
+        card.add_child(card_column)
+        var item_title := Label.new()
+        item_title.text = "%s  %s" % [str(item["icon"]), str(item["name"]).to_upper()]
+        item_title.add_theme_font_size_override("font_size", 14)
+        item_title.add_theme_color_override("font_color", Color(0.91, 0.94, 0.84))
+        card_column.add_child(item_title)
+        var count := Label.new()
+        count.text = "%d" % int(player.inventory.get(str(item["name"]), 0))
+        count.add_theme_font_size_override("font_size", 22)
+        count.add_theme_color_override("font_color", Color(1.0, 0.88, 0.57))
+        card_column.add_child(count)
+        inventory_item_labels[str(item["name"])] = count
+        var description := Label.new()
+        description.text = str(item["description"])
+        description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+        description.add_theme_font_size_override("font_size", 10)
+        description.add_theme_color_override("font_color", Color(0.70, 0.77, 0.70))
+        card_column.add_child(description)
+
     var close := Button.new()
-    close.text = "CERRAR"
+    close.text = "CERRAR MOCHILA"
+    close.custom_minimum_size = Vector2(0, 44)
+    _style_action_button(close)
     close.pressed.connect(_toggle_inventory_panel)
     column.add_child(close)
     control_layer.add_child(inventory_panel)
