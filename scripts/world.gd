@@ -1390,6 +1390,11 @@ func _try_attack() -> void:
     if attack_cooldown > 0.0:
         show_message("Espera %.1f s para golpear." % attack_cooldown)
         return
+    var weapon_damage := [12.0, 35.0 if player.axe_unlocked else 16.0, 22.0, 8.0, 0.0, 5.0]
+    var damage_value: float = weapon_damage[selected_hotbar_index]
+    if damage_value <= 0.0:
+        show_message("La fogata no es un arma. Selecciona una herramienta.")
+        return
     attack_cooldown = 0.48
     var from := player.camera.global_position
     var to := from + -player.camera.global_transform.basis.z * 3.2
@@ -1397,9 +1402,9 @@ func _try_attack() -> void:
     query.exclude = [player.get_rid()]
     var hit := get_world_3d().direct_space_state.intersect_ray(query)
     if hit and hit.collider.is_in_group("wild_animals") and hit.collider.has_method("take_damage"):
-        hit.collider.take_damage(25.0)
+        hit.collider.take_damage(damage_value)
         if is_instance_valid(hit.collider):
-            show_message("Impacto: fauna herida.")
+            show_message("Golpe: %.0f de daño." % damage_value)
     else:
         show_message("No hay ningún animal al alcance.")
 
