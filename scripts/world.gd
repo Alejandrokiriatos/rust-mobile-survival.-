@@ -728,6 +728,27 @@ func _make_hud() -> void:
     _make_craft_panel()
     _make_inventory_panel()
 
+func _add_button_caption(button: Button, caption: String) -> void:
+    var tag := Label.new()
+    tag.text = caption
+    tag.anchor_left = 0.0
+    tag.anchor_right = 1.0
+    tag.anchor_top = 1.0
+    tag.anchor_bottom = 1.0
+    tag.offset_left = 1.0
+    tag.offset_right = -1.0
+    tag.offset_top = -19.0
+    tag.offset_bottom = -2.0
+    tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    tag.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+    tag.add_theme_font_size_override("font_size", 9)
+    tag.add_theme_color_override("font_color", Color(1.0, 0.98, 0.91))
+    tag.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.9))
+    tag.add_theme_constant_override("shadow_offset_x", 1)
+    tag.add_theme_constant_override("shadow_offset_y", 1)
+    tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    button.add_child(tag)
+
 func _make_bar(parent: VBoxContainer, caption: String, tint: Color) -> ProgressBar:
     var row_panel := PanelContainer.new()
     var row_style := StyleBoxFlat.new()
