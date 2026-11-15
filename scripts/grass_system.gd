@@ -20,23 +20,21 @@ func build(world: Node3D) -> void:
     _make_instanced_grass(center)
 
 func _make_leaf_mesh() -> ArrayMesh:
-    # Macollo de tres hojas triangulares cruzadas a 60 grados.
-    # Así siempre se ve volumen 3D desde distintos ángulos de cámara.
+    # Cuatro hojas anchas en planos cruzados: volumen 3D visible desde cualquier lado.
     var vertices := PackedVector3Array()
     var colors := PackedColorArray()
     var indices := PackedInt32Array()
-    var directions := [0.0, PI / 3.0, 2.0 * PI / 3.0]
-    for direction in directions:
-        var side := Vector3(cos(direction), 0.0, sin(direction)) * 0.095
-        var tip := Vector3(0.0, 1.0, 0.0) + Vector3(cos(direction + 0.22), 0.0, sin(direction + 0.22)) * 0.035
+    for direction in [0.0, PI / 4.0, PI / 2.0, 3.0 * PI / 4.0]:
+        var side := Vector3(cos(direction), 0.0, sin(direction)) * 0.16
+        var tip := Vector3(cos(direction + 0.16), 1.55, sin(direction + 0.16)) * 0.10
         var base := vertices.size()
         vertices.append(-side)
         vertices.append(side)
         vertices.append(tip)
-        colors.append(Color(0.12, 0.34, 0.025))
-        colors.append(Color(0.22, 0.52, 0.035))
-        colors.append(Color(0.68, 0.82, 0.22))
-        indices.append_array(PackedInt32Array([base, base + 2, base + 1]))
+        colors.append(Color(0.16, 0.48, 0.035))
+        colors.append(Color(0.24, 0.62, 0.045))
+        colors.append(Color(0.58, 0.82, 0.16))
+        indices.append_array(PackedInt32Array([base, base + 1, base + 2]))
     var arrays := []
     arrays.resize(Mesh.ARRAY_MAX)
     arrays[Mesh.ARRAY_VERTEX] = vertices
@@ -46,27 +44,13 @@ func _make_leaf_mesh() -> ArrayMesh:
     mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
     return mesh
 
-func _make_leaf_material() -> ShaderMaterial:
-    var shader := Shader.new()
-    shader.code = """
-shader_type spatial;
-render_mode cull_disabled, diffuse_burley, specular_disabled;
-uniform float wind_strength = 0.045;
-uniform float wind_speed = 1.15;
-void vertex() {
-    float phase = INSTANCE_CUSTOM.r * 6.2831853;
-    float h = clamp(VERTEX.y / 1.0, 0.0, 1.0);
-    float breeze = sin(TIME * wind_speed + phase + INSTANCE_CUSTOM.g * 5.0);
-    VERTEX.x += breeze * wind_strength * h * h;
-    VERTEX.z += cos(TIME * wind_speed * 0.73 + phase) * wind_strength * 0.45 * h * h;
-}
-void fragment() {
-    ALBEDO = COLOR.rgb;
-    ROUGHNESS = 1.0;
-}
-"""
-    var material := ShaderMaterial.new()
-    material.shader = shader
+func _make_leaf_material() -> StandardMaterial3D:
+    var material := StandardMaterial3D.new()
+    material.albedo_color = Color.WHITE
+    material.vertex_color_use_as_albedo = true
+    material.cull_mode = BaseMaterial3D.CULL_DISABLED
+    material.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
+    material.roughness = 1.0
     return material
 
 func _make_green_carpet(center: Vector3) -> void:
@@ -138,18 +122,18 @@ func _make_instanced_grass(center: Vector3) -> void:
             multi.set_instance_custom_data(i, Color(0.0, 0.0, 0.0, 0.0))
             continue
 
-        var height_scale := rng.randf_range(1.05, 1.65)
-        var width_scale := rng.randf_range(1.0, 1.5)
+        var height_scale := rng.randf_range(0.90, 1.30)
+        var width_scale := rng.randf_range(0.85, 1.25)
         var yaw := rng.randf_range(0.0, TAU)
         var lean := rng.randf_range(-0.13, 0.13)
         var basis := Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, lean)
         basis = basis.scaled(Vector3(width_scale, height_scale, width_scale))
-        multi.set_instance_transform(i, Transform3D(basis, Vector3(wx - center.x, gy + 0.22, wz - center.z)))
+        multi.set_instance_transform(i, Transform3D(basis, Vector3(wx - center.x, gy + 0.08, wz - center.z)))
 
         # Verde natural aleatorio, de sombra profunda a puntas claras.
         var hue := rng.randf_range(0.23, 0.31)
         var saturation := rng.randf_range(0.52, 0.78)
-        var value := rng.randf_range(0.30, 0.57)
+        var value := rng.randf_range(0.62, 0.90)
         multi.set_instance_color(i, Color.from_hsv(hue, saturation, value))
         multi.set_instance_custom_data(i, Color(rng.randf(), rng.randf(), 0.0, 1.0))
 
@@ -159,5 +143,5 @@ func _make_instanced_grass(center: Vector3) -> void:
     grass.material_override = _make_leaf_material()
     grass.position = Vector3(center.x, 0.0, center.z)
     grass.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-    grass.custom_aabb = AABB(Vector3(-GRASS_RADIUS, -8.0, -GRASS_RADIUS), Vector3(GRASS_RADIUS * 2.0, 42.0, GRASS_RADIUS * 2.0))
+    grass.custom_aabb = AABB(Vector3(-GRASS_RADIUS, -128.0, -GRASS_RADIUS), Vector3(GRASS_RADIUS * 2.0, 256.0, GRASS_RADIUS * 2.0))
     add_child(grass)
