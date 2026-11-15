@@ -1451,10 +1451,13 @@ func _create_resource(pos: Vector3, kind: String) -> void:
     add_child(node)
 
 func _scatter_ground_cover() -> void:
-    # Instancias de modelos 3D reales; las zonas rocosas, playas y laderas quedan despejadas.
-    _add_foliage_multimesh(NATURE_MEGA_PATH + "Grass_Common_Short.gltf", 42, 0.78, 1.18)
-    _add_foliage_multimesh(NATURE_MEGA_PATH + "Fern_1.gltf", 8, 0.62, 0.96)
-    # Las flores en grupo deben ser acentos de color, no masas rosas que desde lejos parecen copas de árboles.\n    _add_foliage_multimesh(NATURE_MEGA_PATH + "Flower_3_Group.gltf", 2, 0.42, 0.68)
+    # Cubierta de suelo sin colisión: se puede caminar a través de ella.
+    # La hierba corta común forma la capa base y la variedad wispy rompe el patrón.
+    _add_foliage_multimesh(NATURE_MEGA_PATH + "Grass_Common_Short.gltf", 112, 0.78, 1.18)
+    _add_foliage_multimesh(NATURE_MEGA_PATH + "Grass_Wispy_Short.gltf", 76, 0.66, 1.02)
+    _add_foliage_multimesh(NATURE_MEGA_PATH + "Fern_1.gltf", 12, 0.62, 0.96)
+    # Las flores quedan como acentos puntuales, no como una alfombra rosa.
+    _add_foliage_multimesh(NATURE_MEGA_PATH + "Flower_3_Group.gltf", 3, 0.42, 0.68)
 
 func _add_foliage_multimesh(model_path: String, per_chunk: int, min_scale: float, max_scale: float) -> void:
     if not ResourceLoader.exists(model_path):
