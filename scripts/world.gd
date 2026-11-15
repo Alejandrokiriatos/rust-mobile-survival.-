@@ -6,7 +6,6 @@ class MinimapRadar extends Control:
     var redraw_elapsed := 0.0
 
     func _process(delta: float) -> void:
-    attack_cooldown = maxf(0.0, attack_cooldown - delta)
         # El contorno se calcula una sola vez y el marcador se refresca a 10 Hz.
         redraw_elapsed += delta
         if redraw_elapsed >= 0.1:
@@ -132,6 +131,7 @@ func _unhandled_input(event: InputEvent) -> void:
                 craft_panel.visible = false
 
 func _process(delta: float) -> void:
+    attack_cooldown = maxf(0.0, attack_cooldown - delta)
     _update_day_night(delta)
     autosave_timer += delta
     if autosave_timer >= 60.0 and is_instance_valid(player):
