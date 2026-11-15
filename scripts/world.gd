@@ -104,6 +104,7 @@ const JOYSTICK_SCRIPT = preload("res://scripts/mobile_joystick.gd")
 const ANIMAL_SCRIPT = preload("res://scripts/wild_animal.gd")
 const BUILDABLE_SCRIPT = preload("res://scripts/survival_buildable.gd")
 const TOOL_MODELS = preload("res://scripts/tool_models.gd")
+const GRASS_SYSTEM = preload("res://scripts/grass_system.gd")
 const WORLD_SIZE := 512.0
 const CHUNK_COUNT := 4
 const CHUNK_SIZE := WORLD_SIZE / CHUNK_COUNT
@@ -1614,98 +1615,12 @@ func _create_resource(pos: Vector3, kind: String) -> void:
     add_child(node)
 
 func _scatter_ground_cover() -> void:
-    # Cubierta de suelo sin colisión: se puede caminar a través de ella.
-    # La hierba corta común forma la capa base y la variedad wispy rompe el patrón.
-    _add_foliage_multimesh(NATURE_MEGA_PATH + "Grass_Common_Short.gltf", 24000, 0.23, 0.33)
-    _add_foliage_multimesh(NATURE_MEGA_PATH + "Grass_Wispy_Short.gltf", 18000, 0.20, 0.30)
-    _add_foliage_multimesh(NATURE_MEGA_PATH + "Fern_1.gltf", 12, 0.62, 0.96)
-    # Las flores quedan como acentos puntuales, no como una alfombra rosa.
-    _add_foliage_multimesh(NATURE_MEGA_PATH + "Flower_3_Group.gltf", 3, 0.42, 0.68)
-
-func _add_foliage_multimesh(model_path: String, per_chunk: int, min_scale: float, max_scale: float) -> void:
-    if not ResourceLoader.exists(model_path):
-        return
-    var packed := load(model_path) as PackedScene
-    if packed == null:
-        return
-    var sample := packed.instantiate()
-    var mesh_nodes: Array[MeshInstance3D] = []
-    if sample is MeshInstance3D:
-        mesh_nodes.append(sample as MeshInstance3D)
-    for node in sample.find_children("*", "MeshInstance3D", true, false):
-        if node is MeshInstance3D:
-            mesh_nodes.append(node as MeshInstance3D)
-    if mesh_nodes.is_empty():
-        sample.free()
-        return
-    for chunk_z in range(CHUNK_COUNT):
-        for chunk_x in range(CHUNK_COUNT):
-            var center_x := -WORLD_SIZE * 0.5 + (float(chunk_x) + 0.5) * CHUNK_SIZE
-            var center_z := -WORLD_SIZE * 0.5 + (float(chunk_z) + 0.5) * CHUNK_SIZE
-            for source_mesh in mesh_nodes:
-                if source_mesh.mesh == null:
-                    continue
-                var multi := MultiMesh.new()
-                multi.transform_format = MultiMesh.TRANSFORM_3D
-                multi.mesh = source_mesh.mesh
-                multi.instance_count = per_chunk
-                for index in range(per_chunk):
-                    var local_x: float
-                    var local_z: float
-                    if model_path.contains("Grass_"):
-                        # Rejilla con jitter: mantiene separación corta y uniforme,
-                        # evitando los grandes claros que deja el muestreo puramente aleatorio.
-                        var grid_side := ceili(sqrt(float(per_chunk)))
-                        var cell_size := CHUNK_SIZE / float(grid_side)
-                        var cell_x := index % grid_side
-                        var cell_z := int(index / grid_side)
-                        local_x = -CHUNK_SIZE * 0.5 + (float(cell_x) + rng.randf_range(0.12, 0.88)) * cell_size
-                        local_z = -CHUNK_SIZE * 0.5 + (float(cell_z) + rng.randf_range(0.18, 0.82)) * cell_size
-                    else:
-                        local_x = rng.randf_range(-CHUNK_SIZE * 0.48, CHUNK_SIZE * 0.48)
-                        local_z = rng.randf_range(-CHUNK_SIZE * 0.48, CHUNK_SIZE * 0.48)
-                    var world_x := center_x + local_x
-                    var world_z := center_z + local_z
-                    var ground_y := _height_at(world_x, world_z)
-                    var normal := _terrain_normal_at(world_x, world_z)
-                    var slope := 1.0 - normal.y
-                    var scale_value := rng.randf_range(min_scale, max_scale)
-                    var biome_value := biome_noise.get_noise_2d(world_x, world_z)
-                    # Hierba densa en praderas; helechos y flores aparecen en manchas más selectivas.
-                    if ground_y <= WATER_LEVEL + 3.0 or ground_y > 26.0 or slope > 0.48:
-                        scale_value = 0.0
-                    elif ground_y < 1.0:
-                        scale_value *= 0.55
-                    elif ground_y > 26.0:
-                        scale_value *= 0.32
-                    elif biome_value < -0.62:
-                        scale_value *= 0.90
-                    elif biome_value > 0.35:
-                        scale_value *= 1.12
-                    var yaw := rng.randf_range(0.0, TAU)
-                    # Los modelos de hierba del pack son muy estrechos: ampliar solo
-                    # su huella horizontal mejora la cobertura sin convertirlos en matas altas.
-                    var foliage_scale := Vector3.ONE * scale_value
-                    if model_path.contains("Grass_"):
-                        foliage_scale = Vector3(scale_value * 1.65, scale_value * 0.46, scale_value * 1.65)
-                    var basis := Basis(Vector3.UP, yaw).scaled(foliage_scale)
-                    var placement := Transform3D(basis, Vector3(local_x, ground_y, local_z))
-                    # Conserva la posición y orientación internas de cada pieza del modelo GLTF.
-                    multi.set_instance_transform(index, placement * source_mesh.transform)
-                var instance := MultiMeshInstance3D.new()
-                instance.multimesh = multi
-                instance.position = Vector3(center_x, 0.0, center_z)
-                instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-                # La hierba lejana se descarta por distancia; no proyecta sombras.
-                # Esto limita el coste de miles de instancias en móviles modestos.
-                instance.visibility_range_begin = 0.0
-                instance.visibility_range_end = 145.0
-                instance.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
-                instance.custom_aabb = AABB(Vector3(-CHUNK_SIZE * 0.5, -12.0, -CHUNK_SIZE * 0.5), Vector3(CHUNK_SIZE, 42.0, CHUNK_SIZE))
-                if source_mesh.material_override != null:
-                    instance.material_override = source_mesh.material_override
-                add_child(instance)
-    sample.free()
+    # Sistema procedural inspirado en la referencia: hojas pequeñas, finas,
+    # muy tupidas, variación natural de verdes y brisa animada. Sin colisión.
+    var grass := GRASS_SYSTEM.new()
+    grass.name = "ProceduralDenseGrass"
+    add_child(grass)
+    grass.build(self)
 
 func _refresh_held_tool() -> void:
     if not is_instance_valid(held_tool_root):
