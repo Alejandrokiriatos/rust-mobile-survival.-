@@ -19,6 +19,8 @@ var flee_timer := 0.0
 var health := 60.0
 var animation_player: AnimationPlayer
 var current_animation := ""
+var visual_root: Node3D
+var animation_state := "idle"
 var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 
 func configure(data: Dictionary) -> void:
@@ -36,7 +38,7 @@ func _ready() -> void:
     _build_visual()
 
 func _build_visual() -> void:
-    var visual_root := Node3D.new()
+    visual_root = Node3D.new()
     visual_root.name = "AnimatedModel"
     visual_root.scale = Vector3.ONE * model_scale
     add_child(visual_root)
@@ -144,12 +146,21 @@ func _play_state(state: String) -> void:
                 break
         if not wanted.is_empty():
             break
-    if wanted.is_empty() and not names.is_empty():
-        wanted = str(names[0])
+    # No reproducir una animación arbitraria como sustituto de caminar:
+    # algunos paquetes incluyen clips de presentación que dejan las patas quietas.
+    if wanted.is_empty():
+        if animation_player.is_playing():
+            animation_player.stop()
+        current_animation = ""
+        animation_state = state
+        return
     if wanted != current_animation:
         current_animation = wanted
-        if not wanted.is_empty():
-            animation_player.play(wanted)
+        animation_state = state
+        var blend_time := 0.16 if state == "walk" or state == "run" else 0.22
+        animation_player.play(wanted, blend_time)
+    # Ajusta la cadencia del clip a la velocidad real del animal.
+    animation_player.speed_scale = 1.35 if state == "run" else (0.82 if state == "walk" else 1.0)
 
 func take_damage(amount: float) -> void:
     if health <= 0.0:
