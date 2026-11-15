@@ -1183,33 +1183,58 @@ func _scatter_resources() -> void:
     if not _has_all_resource_models():
         message.text = "Instala Kenney Nature Kit para activar los recursos 3D."
         return
+    # Separación mínima entre nodos para evitar árboles, rocas y arbustos apilados.
+    var occupied_positions: Array[Vector3] = []
     for kind in RESOURCE_COUNTS:
         var created := 0
         var attempts := 0
-        while created < RESOURCE_COUNTS[kind] and attempts < RESOURCE_COUNTS[kind] * 18:
+        var target_count: int = int(RESOURCE_COUNTS[kind])
+        while created < target_count and attempts < target_count * 28:
             attempts += 1
             var x := rng.randf_range(-WORLD_SIZE * 0.46, WORLD_SIZE * 0.46)
             var z := rng.randf_range(-WORLD_SIZE * 0.46, WORLD_SIZE * 0.46)
             var distance := Vector2(x, z).length()
-            if distance < 28.0:
+            if distance < 30.0:
                 continue
             var y := _height_at(x, z)
-            if y < WATER_LEVEL + 2.0:
+            # Ningún recurso aparece sumergido ni pegado a la línea de marea.
+            if y < WATER_LEVEL + 3.0:
                 continue
             var normal := _terrain_normal_at(x, z)
             var slope := 1.0 - normal.y
             var biome := biome_noise.get_noise_2d(x, z)
             var ridge := ridge_noise.get_noise_2d(x, z)
-            if slope > 0.68:
+            if slope > 0.62:
                 continue
-            if kind == "Madera" and (biome < -0.48 or y < 1.0):
+            # Cada recurso tiene un hábitat propio: bosque, ladera rocosa o matorral.
+            if kind == "Madera":
+                if biome < -0.22 or y < 1.5 or y > 31.0 or slope > 0.38:
+                    continue
+                if rng.randf() > clampf(0.82 + biome * 0.16, 0.58, 0.96):
+                    continue
+            elif kind == "Piedra":
+                if y < 3.5 and ridge < 0.18:
+                    continue
+                if rng.randf() > clampf(0.54 + maxf(ridge, 0.0) * 0.42 + slope * 0.22, 0.48, 0.96):
+                    continue
+            elif kind == "Fibra":
+                if y > 29.0 or slope > 0.42:
+                    continue
+                if rng.randf() > clampf(0.82 - maxf(biome, 0.0) * 0.20, 0.52, 0.90):
+                    continue
+            var too_close := false
+            for existing in occupied_positions:
+                if Vector2(existing.x - x, existing.z - z).length_squared() < 13.0:
+                    too_close = true
+                    break
+            if too_close:
                 continue
-            if kind == "Piedra" and (y < 5.0 and ridge < 0.12):
-                continue
-            if kind == "Fibra" and (slope > 0.48 or y > 27.0):
-                continue
-            _create_resource(Vector3(x, y, z), kind)
+            var resource_position := Vector3(x, y, z)
+            _create_resource(resource_position, kind)
+            occupied_positions.append(resource_position)
             created += 1
+        if created < target_count:
+            push_warning("Distribución de %s: se colocaron %d de %d nodos." % [kind, created, target_count])
 
 func _create_resource(pos: Vector3, kind: String) -> void:
     var options: Array = asset_scenes[kind]
