@@ -895,7 +895,7 @@ func _make_hotbar_preview(slot: Button, model_file: String, item_name: String, s
     viewport.render_target_update_mode = SubViewport.UPDATE_ONCE
     preview.add_child(viewport)
 
-    var procedural_kind := ["stone", "axe", "pickaxe", "", "", "torch"][slot_number - 1]
+    var procedural_kind: String = str(["stone", "axe", "pickaxe", "", "", "torch"][slot_number - 1])
     if not procedural_kind.is_empty():
         var model := TOOL_MODELS.create_display_tool(procedural_kind, 0.82)
         viewport.add_child(model)
