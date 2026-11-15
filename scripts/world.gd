@@ -1453,8 +1453,8 @@ func _create_resource(pos: Vector3, kind: String) -> void:
 func _scatter_ground_cover() -> void:
     # Cubierta de suelo sin colisión: se puede caminar a través de ella.
     # La hierba corta común forma la capa base y la variedad wispy rompe el patrón.
-    _add_foliage_multimesh(NATURE_MEGA_PATH + "Grass_Common_Short.gltf", 15500, 0.30, 0.44)
-    _add_foliage_multimesh(NATURE_MEGA_PATH + "Grass_Wispy_Short.gltf", 10500, 0.24, 0.36)
+    _add_foliage_multimesh(NATURE_MEGA_PATH + "Grass_Common_Short.gltf", 24000, 0.23, 0.33)
+    _add_foliage_multimesh(NATURE_MEGA_PATH + "Grass_Wispy_Short.gltf", 18000, 0.20, 0.30)
     _add_foliage_multimesh(NATURE_MEGA_PATH + "Fern_1.gltf", 12, 0.62, 0.96)
     # Las flores quedan como acentos puntuales, no como una alfombra rosa.
     _add_foliage_multimesh(NATURE_MEGA_PATH + "Flower_3_Group.gltf", 3, 0.42, 0.68)
@@ -1496,7 +1496,7 @@ func _add_foliage_multimesh(model_path: String, per_chunk: int, min_scale: float
                         var cell_size := CHUNK_SIZE / float(grid_side)
                         var cell_x := index % grid_side
                         var cell_z := int(index / grid_side)
-                        local_x = -CHUNK_SIZE * 0.5 + (float(cell_x) + rng.randf_range(0.18, 0.82)) * cell_size
+                        local_x = -CHUNK_SIZE * 0.5 + (float(cell_x) + rng.randf_range(0.12, 0.88)) * cell_size
                         local_z = -CHUNK_SIZE * 0.5 + (float(cell_z) + rng.randf_range(0.18, 0.82)) * cell_size
                     else:
                         local_x = rng.randf_range(-CHUNK_SIZE * 0.48, CHUNK_SIZE * 0.48)
@@ -1524,7 +1524,7 @@ func _add_foliage_multimesh(model_path: String, per_chunk: int, min_scale: float
                     # su huella horizontal mejora la cobertura sin convertirlos en matas altas.
                     var foliage_scale := Vector3.ONE * scale_value
                     if model_path.contains("Grass_"):
-                        foliage_scale = Vector3(scale_value * 2.30, scale_value * 0.58, scale_value * 2.30)
+                        foliage_scale = Vector3(scale_value * 1.65, scale_value * 0.46, scale_value * 1.65)
                     var basis := Basis(Vector3.UP, yaw).scaled(foliage_scale)
                     var placement := Transform3D(basis, Vector3(local_x, ground_y, local_z))
                     # Conserva la posición y orientación internas de cada pieza del modelo GLTF.
