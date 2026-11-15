@@ -135,7 +135,7 @@ func _make_instanced_grass(center: Vector3) -> void:
         if gy <= -2.5 or gy > 26.0 or 1.0 - normal.y > 0.48:
             multi.set_instance_transform(i, Transform3D(Basis.IDENTITY.scaled(Vector3.ZERO), Vector3(0.0, -100.0, 0.0)))
             multi.set_instance_color(i, Color.WHITE)
-            multi.set_instance_custom_data(i, Color.ZERO)
+            multi.set_instance_custom_data(i, Color(0.0, 0.0, 0.0, 0.0))
             continue
 
         var height_scale := rng.randf_range(1.05, 1.65)
