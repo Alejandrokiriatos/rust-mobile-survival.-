@@ -60,7 +60,7 @@ class MinimapRadar extends Control:
             map_pos.y = clampf(map_pos.y, 5.0, size.y - 5.0)
             # Flecha de jugador: el mapa permanece orientado al norte.
             var heading: float = -player_node.rotation.y
-            var forward := Vector2(-sin(heading), cos(heading))
+            var forward := Vector2(-sin(heading), -cos(heading))
             var side := Vector2(-forward.y, forward.x)
             var arrow := PackedVector2Array([
                 map_pos + forward * 6.0,
