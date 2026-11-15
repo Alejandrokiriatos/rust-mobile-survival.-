@@ -1341,14 +1341,23 @@ func _add_foliage_multimesh(model_path: String, per_chunk: int, min_scale: float
                     var normal := _terrain_normal_at(world_x, world_z)
                     var slope := 1.0 - normal.y
                     var scale_value := rng.randf_range(min_scale, max_scale)
+                    var biome_value := biome_noise.get_noise_2d(world_x, world_z)
+                    # Hierba densa en praderas; helechos y flores aparecen en manchas más selectivas.
                     if ground_y <= WATER_LEVEL + 3.0 or slope > 0.48:
                         scale_value = 0.0
+                    elif ground_y < 1.0:
+                        scale_value *= 0.18
                     elif ground_y > 26.0:
-                        scale_value *= 0.45
-                    elif biome_noise.get_noise_2d(world_x, world_z) < -0.62:
-                        scale_value *= 0.25
-                    var basis := Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3.ONE * scale_value)
-                    multi.set_instance_transform(index, Transform3D(basis, Vector3(local_x, ground_y, local_z)))
+                        scale_value *= 0.32
+                    elif biome_value < -0.62:
+                        scale_value *= 0.20
+                    elif biome_value > 0.35:
+                        scale_value *= 1.12
+                    var yaw := rng.randf_range(0.0, TAU)
+                    var basis := Basis(Vector3.UP, yaw).scaled(Vector3.ONE * scale_value)
+                    var placement := Transform3D(basis, Vector3(local_x, ground_y, local_z))
+                    # Conserva la posición y orientación internas de cada pieza del modelo GLTF.
+                    multi.set_instance_transform(index, placement * source_mesh.transform)
                 var instance := MultiMeshInstance3D.new()
                 instance.multimesh = multi
                 instance.position = Vector3(center_x, 0.0, center_z)
