@@ -1453,8 +1453,8 @@ func _create_resource(pos: Vector3, kind: String) -> void:
 func _scatter_ground_cover() -> void:
     # Cubierta de suelo sin colisión: se puede caminar a través de ella.
     # La hierba corta común forma la capa base y la variedad wispy rompe el patrón.
-    _add_foliage_multimesh(NATURE_MEGA_PATH + "Grass_Common_Short.gltf", 1800, 0.28, 0.44)
-    _add_foliage_multimesh(NATURE_MEGA_PATH + "Grass_Wispy_Short.gltf", 1200, 0.22, 0.36)
+    _add_foliage_multimesh(NATURE_MEGA_PATH + "Grass_Common_Short.gltf", 3600, 0.28, 0.44)
+    _add_foliage_multimesh(NATURE_MEGA_PATH + "Grass_Wispy_Short.gltf", 2400, 0.22, 0.36)
     _add_foliage_multimesh(NATURE_MEGA_PATH + "Fern_1.gltf", 12, 0.62, 0.96)
     # Las flores quedan como acentos puntuales, no como una alfombra rosa.
     _add_foliage_multimesh(NATURE_MEGA_PATH + "Flower_3_Group.gltf", 3, 0.42, 0.68)
@@ -1497,14 +1497,14 @@ func _add_foliage_multimesh(model_path: String, per_chunk: int, min_scale: float
                     var scale_value := rng.randf_range(min_scale, max_scale)
                     var biome_value := biome_noise.get_noise_2d(world_x, world_z)
                     # Hierba densa en praderas; helechos y flores aparecen en manchas más selectivas.
-                    if ground_y <= WATER_LEVEL + 3.0 or slope > 0.48:
+                    if ground_y <= WATER_LEVEL + 3.0 or ground_y > 26.0 or slope > 0.48:
                         scale_value = 0.0
                     elif ground_y < 1.0:
-                        scale_value *= 0.18
+                        scale_value *= 0.55
                     elif ground_y > 26.0:
                         scale_value *= 0.32
                     elif biome_value < -0.62:
-                        scale_value *= 0.20
+                        scale_value *= 0.45
                     elif biome_value > 0.35:
                         scale_value *= 1.12
                     var yaw := rng.randf_range(0.0, TAU)
