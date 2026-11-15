@@ -307,15 +307,19 @@ void fragment() {
 
     // Proyección triplanar en espacio mundo: evita costuras entre chunks y
     // reduce las bandas y estiramientos visibles en pendientes.
-    vec3 grass = triplanar(grass_tex, p, n, 0.052);
-    vec3 dirt = triplanar(dirt_tex, p, n, 0.043);
-    vec3 sand = triplanar(sand_tex, p, n, 0.038);
-    vec3 rock = triplanar(rock_tex, p, n, 0.036);
+    vec3 grass = triplanar(grass_tex, p, n, 0.022);
+    vec3 dirt = triplanar(dirt_tex, p, n, 0.020);
+    vec3 sand = triplanar(sand_tex, p, n, 0.018);
+    vec3 rock = triplanar(rock_tex, p, n, 0.019);
 
     // Variación cromática de escala grande para romper la repetición de las
     // muestras sin añadir texturas ni coste de geometría.
     vec2 macro_cell = floor(p.xz * 0.115);
-    float macro_noise = hash2(macro_cell) * 0.10 + hash2(macro_cell * 0.37 + 19.0) * 0.06;
+    float macro_noise = hash2(macro_cell) * 0.08 + hash2(macro_cell * 0.37 + 19.0) * 0.05;
+    grass = mix(vec3(0.15, 0.23, 0.12), grass, 0.38);
+    dirt = mix(vec3(0.28, 0.22, 0.15), dirt, 0.32);
+    sand = mix(vec3(0.48, 0.40, 0.27), sand, 0.28);
+    rock = mix(vec3(0.27, 0.28, 0.27), rock, 0.34);
     float biome_mix = smoothstep(0.40, 0.76, COLOR.r) * 0.42;
     float beach_mix = 1.0 - smoothstep(-1.2, 4.2, height);
     float highland_mix = smoothstep(21.0, 35.0, height) * 0.42;
@@ -324,7 +328,7 @@ void fragment() {
     vec3 ground = mix(grass, dirt, biome_mix);
     ground = mix(ground, sand, beach_mix);
     ground = mix(ground, rock, rock_mix);
-    ground *= 0.94 + macro_noise;
+    ground *= 0.88 + macro_noise;
     ALBEDO = ground;
     ROUGHNESS = 0.97;
     SPECULAR = 0.08;
