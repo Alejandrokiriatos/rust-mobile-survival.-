@@ -48,8 +48,8 @@ class MinimapRadar extends Control:
         var image := Image.create(resolution, resolution, false, Image.FORMAT_RGBA8)
         for py in range(resolution):
             for px in range(resolution):
-                var wx := (float(px) / float(resolution - 1) - 0.5) * world_ref.WORLD_SIZE
-                var wz := (float(py) / float(resolution - 1) - 0.5) * world_ref.WORLD_SIZE
+                var wx: float = (float(px) / float(resolution - 1) - 0.5) * world_ref.WORLD_SIZE
+                var wz: float = (float(py) / float(resolution - 1) - 0.5) * world_ref.WORLD_SIZE
                 var height: float = world_ref._height_at(wx, wz)
                 var color: Color
                 if height <= -2.5:
@@ -87,7 +87,7 @@ class MinimapRadar extends Control:
             const VIEW_DIAMETER := 150.0
             var pos: Vector3 = player_node.global_position
             var map_center := Vector2((pos.x / world_ref.WORLD_SIZE + 0.5) * 192.0, (pos.z / world_ref.WORLD_SIZE + 0.5) * 192.0)
-            var source_size := Vector2.ONE * (VIEW_DIAMETER / world_ref.WORLD_SIZE * 192.0)
+            var source_size: Vector2 = Vector2.ONE * (VIEW_DIAMETER / world_ref.WORLD_SIZE * 192.0)
             var source := Rect2(map_center - source_size * 0.5, source_size)
             source.position.x = clampf(source.position.x, 0.0, 192.0 - source_size.x)
             source.position.y = clampf(source.position.y, 0.0, 192.0 - source_size.y)
