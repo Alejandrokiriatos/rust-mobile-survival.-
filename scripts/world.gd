@@ -1,5 +1,33 @@
 extends Node3D
 
+class CompassRibbon extends Control:
+    var heading_degrees := 0.0
+    const POINTS := ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"]
+
+    func _draw() -> void:
+        var center_x := size.x * 0.5
+        var font := ThemeDB.fallback_font
+        for tick in range(-18, 19):
+            var tick_angle := float(tick) * 5.0
+            var delta_angle := fposmod(tick_angle - heading_degrees + 180.0, 360.0) - 180.0
+            var x := center_x + delta_angle * 4.1
+            if x < 4.0 or x > size.x - 4.0:
+                continue
+            var is_major := posmod(roundi(tick_angle), 45) == 0
+            draw_line(Vector2(x, 4.0), Vector2(x, 14.0 if is_major else 9.0), Color(0.91, 0.94, 0.86, 0.68 if is_major else 0.30), 1.0, true)
+        for i in range(POINTS.size()):
+            var point_angle := float(i) * 22.5
+            var delta := fposmod(point_angle - heading_degrees + 180.0, 360.0) - 180.0
+            var x := center_x + delta * 4.1
+            if x < 8.0 or x > size.x - 8.0:
+                continue
+            var color := Color(1.0, 0.88, 0.52, 0.98) if i % 4 == 0 else Color(0.91, 0.95, 0.90, 0.72)
+            draw_string(font, Vector2(x - 12.0, 35.0), POINTS[i], HORIZONTAL_ALIGNMENT_CENTER, 24.0, 13 if i % 4 == 0 else 10, color)
+        draw_line(Vector2(center_x, 2.0), Vector2(center_x, 39.0), Color(1.0, 0.79, 0.30, 0.96), 2.0, true)
+        var index := int(roundi(heading_degrees / 22.5)) % 16
+        var heading_text := "%s  ·  %03d°" % [POINTS[index], roundi(heading_degrees) % 360]
+        draw_string(font, Vector2(center_x - 52.0, 57.0), heading_text, HORIZONTAL_ALIGNMENT_CENTER, 104.0, 12, Color(0.98, 0.96, 0.86, 0.94))
+
 class MinimapRadar extends Control:
     var world_ref: Node3D
     var terrain_map: Texture2D
@@ -47,7 +75,7 @@ class MinimapRadar extends Control:
         if world_ref == null or not is_instance_valid(world_ref):
             return
         _build_terrain_map()
-        draw_rect(Rect2(Vector2.ZERO, size), Color(0.035, 0.055, 0.052), true)
+        draw_rect(Rect2(Vector2.ZERO, size), Color(0.035, 0.055, 0.052, 0.18), true)
         if terrain_map != null:
             draw_texture_rect(terrain_map, Rect2(Vector2.ZERO, size), false)
         # Un marco fino sustituye las antiguas dianas y anillos decorativos.
@@ -110,7 +138,7 @@ var health_bar: ProgressBar
 var hunger_bar: ProgressBar
 var thirst_bar: ProgressBar
 var stamina_bar: ProgressBar
-var compass_label: Label
+var compass_label: CompassRibbon
 var minimap_coords: Label
 var inventory_panel: PanelContainer
 var inventory_summary: Label
@@ -170,15 +198,8 @@ func _process(delta: float) -> void:
         thirst_bar.value = player.thirst
         stamina_bar.value = player.stamina
     if is_instance_valid(compass_label):
-        var heading := fposmod(rad_to_deg(player.rotation.y) + 360.0, 360.0)
-        var directions := ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
-        var center_index := int(roundi(heading / 45.0)) % 8
-        var tape := ""
-        for offset in range(-3, 4):
-            var direction_index := posmod(center_index + offset, 8)
-            var direction_name: String = directions[direction_index]
-            tape += ("   " if offset < 0 else "  ") + direction_name
-        compass_label.text = tape.strip_edges() + "\n" + "▲  %s  ·  %03d°" % [directions[center_index], roundi(heading)]
+        compass_label.heading_degrees = fposmod(rad_to_deg(player.rotation.y) + 360.0, 360.0)
+        compass_label.queue_redraw()
     if is_instance_valid(minimap_coords):
         minimap_coords.text = "X %d  Z %d" % [roundi(player.global_position.x), roundi(player.global_position.z)]
     for item_name in inventory_item_labels:
@@ -592,22 +613,14 @@ func _make_hud() -> void:
     thirst_bar = _make_bar(status_stack, "SED", Color(0.18, 0.58, 0.94))
     stamina_bar = _make_bar(status_stack, "ENERGÍA", Color(0.25, 0.76, 0.40))
 
-    # Brújula y hora en cápsulas independientes para que no se solapen.
-    var compass_panel := PanelContainer.new()
-    compass_panel.anchor_left = 0.5
-    compass_panel.anchor_right = 0.5
-    compass_panel.position = Vector2(-190, 8)
-    compass_panel.custom_minimum_size = Vector2(380, 66)
-    _style_action_panel(compass_panel)
-    control_layer.add_child(compass_panel)
-    compass_label = Label.new()
-    compass_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-    compass_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-    compass_label.custom_minimum_size = Vector2(360, 58)
-    compass_label.add_theme_font_size_override("font_size", 13)
-    compass_label.add_theme_color_override("font_color", Color(0.96, 0.94, 0.82))
-    compass_label.text = "NW   N   NE   E   SE   S   SW\n▲  RUMBO 000°"
-    compass_panel.add_child(compass_label)
+    # Brújula flotante sin placa de fondo: la escala se desliza suavemente.
+    compass_label = CompassRibbon.new()
+    compass_label.anchor_left = 0.5
+    compass_label.anchor_right = 0.5
+    compass_label.position = Vector2(-210, 5)
+    compass_label.custom_minimum_size = Vector2(420, 62)
+    compass_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    control_layer.add_child(compass_label)
 
     day_label = Label.new()
     day_label.position = Vector2(18, 148)
@@ -786,7 +799,7 @@ func _make_bar(parent: VBoxContainer, caption: String, tint: Color) -> ProgressB
     bar.add_theme_font_size_override("font_size", 9)
     bar.add_theme_color_override("font_color", Color.WHITE)
     var track := StyleBoxFlat.new()
-    track.bg_color = Color(0.025, 0.035, 0.040, 0.88)
+    track.bg_color = Color(0.025, 0.035, 0.040, 0.18)
     track.border_color = Color(0.80, 0.86, 0.86, 0.30)
     track.set_border_width_all(1)
     track.set_corner_radius_all(3)
@@ -804,11 +817,11 @@ func _make_bar(parent: VBoxContainer, caption: String, tint: Color) -> ProgressB
 
 func _style_action_panel(panel: Control) -> void:
     var style := StyleBoxFlat.new()
-    style.bg_color = Color(0.018, 0.026, 0.024, 0.78)
-    style.border_color = Color(0.78, 0.84, 0.78, 0.52)
+    style.bg_color = Color(0.035, 0.055, 0.052, 0.16)
+    style.border_color = Color(0.88, 0.93, 0.86, 0.30)
     style.set_border_width_all(1)
     style.set_corner_radius_all(9)
-    style.shadow_color = Color(0.0, 0.0, 0.0, 0.42)
+    style.shadow_color = Color(0.0, 0.0, 0.0, 0.12)
     style.shadow_size = 7
     style.shadow_offset = Vector2(0, 3)
     style.set_content_margin_all(8)
@@ -947,7 +960,7 @@ func _preview_bounds(node: Node, parent_transform: Transform3D) -> AABB:
 
 func _style_hotbar_tray(panel: PanelContainer) -> void:
     var tray := StyleBoxFlat.new()
-    tray.bg_color = Color(0.012, 0.018, 0.016, 0.66)
+    tray.bg_color = Color(0.012, 0.018, 0.016, 0.12)
     tray.border_color = Color(0.72, 0.80, 0.70, 0.42)
     tray.set_border_width_all(1)
     tray.set_corner_radius_all(11)
@@ -956,7 +969,7 @@ func _style_hotbar_tray(panel: PanelContainer) -> void:
 
 func _style_hotbar_slot(button: Button, selected: bool) -> void:
     var normal := StyleBoxFlat.new()
-    normal.bg_color = Color(0.26, 0.29, 0.20, 0.92) if selected else Color(0.035, 0.050, 0.045, 0.58)
+    normal.bg_color = Color(0.26, 0.29, 0.20, 0.34) if selected else Color(0.035, 0.050, 0.045, 0.12)
     normal.border_color = Color(0.91, 0.75, 0.34, 0.95) if selected else Color(0.55, 0.65, 0.56, 0.55)
     normal.set_border_width_all(2 if selected else 1)
     normal.set_corner_radius_all(6)
@@ -1446,7 +1459,7 @@ func _set_action_icon(button: Button, icon_name: String) -> void:
 func _style_action_button(button: Button, round_button: bool = false) -> void:
     # Control táctil circular: vidrio ahumado, aro claro y sombra para separarlo del mundo.
     var normal := StyleBoxFlat.new()
-    normal.bg_color = Color(0.025, 0.038, 0.046, 0.88)
+    normal.bg_color = Color(0.025, 0.038, 0.046, 0.24)
     normal.border_color = Color(0.82, 0.90, 0.94, 0.76)
     normal.set_border_width_all(2)
     normal.set_corner_radius_all(999 if round_button else 12)
@@ -1456,7 +1469,7 @@ func _style_action_button(button: Button, round_button: bool = false) -> void:
     normal.set_content_margin_all(7)
     button.add_theme_stylebox_override("normal", normal)
     var pressed := StyleBoxFlat.new()
-    pressed.bg_color = Color(0.12, 0.24, 0.30, 0.97)
+    pressed.bg_color = Color(0.12, 0.24, 0.30, 0.48)
     pressed.border_color = Color(0.68, 0.86, 1.0, 0.95)
     pressed.set_border_width_all(2)
     pressed.set_corner_radius_all(999 if round_button else 12)
@@ -1466,7 +1479,7 @@ func _style_action_button(button: Button, round_button: bool = false) -> void:
     pressed.set_content_margin_all(7)
     button.add_theme_stylebox_override("pressed", pressed)
     var hover := normal.duplicate() as StyleBoxFlat
-    hover.bg_color = Color(0.13, 0.16, 0.18, 0.90)
+    hover.bg_color = Color(0.13, 0.16, 0.18, 0.32)
     button.add_theme_stylebox_override("hover", hover)
     button.add_theme_color_override("font_color", Color(0.97, 0.98, 1.0))
     button.add_theme_color_override("font_pressed_color", Color.WHITE)
