@@ -20,22 +20,28 @@ func build(world: Node3D) -> void:
     _make_instanced_grass(center)
 
 func _make_leaf_mesh() -> ArrayMesh:
-    # Una hoja triangular real: base ancha, punta fina y una ligera curvatura.
-    var vertices := PackedVector3Array([
-        Vector3(-0.032, 0.0, 0.0),
-        Vector3(0.032, 0.0, 0.0),
-        Vector3(0.0, 0.52, 0.025)
-    ])
-    var colors := PackedColorArray([
-        Color(0.12, 0.30, 0.055),
-        Color(0.16, 0.39, 0.07),
-        Color(0.48, 0.64, 0.16)
-    ])
+    # Macollo de tres hojas triangulares cruzadas a 60 grados.
+    # Así siempre se ve volumen 3D desde distintos ángulos de cámara.
+    var vertices := PackedVector3Array()
+    var colors := PackedColorArray()
+    var indices := PackedInt32Array()
+    var directions := [0.0, PI / 3.0, 2.0 * PI / 3.0]
+    for direction in directions:
+        var side := Vector3(cos(direction), 0.0, sin(direction)) * 0.065
+        var tip := Vector3(0.0, 0.72, 0.0) + Vector3(cos(direction + 0.22), 0.0, sin(direction + 0.22)) * 0.035
+        var base := vertices.size()
+        vertices.append(-side)
+        vertices.append(side)
+        vertices.append(tip)
+        colors.append(Color(0.10, 0.28, 0.035))
+        colors.append(Color(0.17, 0.40, 0.055))
+        colors.append(Color(0.52, 0.70, 0.19))
+        indices.append_array(PackedInt32Array([base, base + 2, base + 1]))
     var arrays := []
     arrays.resize(Mesh.ARRAY_MAX)
     arrays[Mesh.ARRAY_VERTEX] = vertices
     arrays[Mesh.ARRAY_COLOR] = colors
-    arrays[Mesh.ARRAY_INDEX] = PackedInt32Array([0, 2, 1])
+    arrays[Mesh.ARRAY_INDEX] = indices
     var mesh := ArrayMesh.new()
     mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
     return mesh
@@ -132,13 +138,13 @@ func _make_instanced_grass(center: Vector3) -> void:
             multi.set_instance_custom_data(i, Color.ZERO)
             continue
 
-        var height_scale := rng.randf_range(0.5, 1.3)
-        var width_scale := rng.randf_range(0.8, 1.35)
+        var height_scale := rng.randf_range(0.85, 1.45)
+        var width_scale := rng.randf_range(0.9, 1.35)
         var yaw := rng.randf_range(0.0, TAU)
         var lean := rng.randf_range(-0.13, 0.13)
         var basis := Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, lean)
         basis = basis.scaled(Vector3(width_scale, height_scale, width_scale))
-        multi.set_instance_transform(i, Transform3D(basis, Vector3(wx - center.x, gy + 0.008, wz - center.z)))
+        multi.set_instance_transform(i, Transform3D(basis, Vector3(wx - center.x, gy + 0.025, wz - center.z)))
 
         # Verde natural aleatorio, de sombra profunda a puntas claras.
         var hue := rng.randf_range(0.23, 0.31)
