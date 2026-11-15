@@ -294,6 +294,17 @@ float hash2(vec2 p) {
     return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
 }
 
+float value_noise(vec2 p) {
+    vec2 cell = floor(p);
+    vec2 f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    float a = hash2(cell);
+    float b = hash2(cell + vec2(1.0, 0.0));
+    float c = hash2(cell + vec2(0.0, 1.0));
+    float d = hash2(cell + vec2(1.0, 1.0));
+    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+}
+
 void vertex() {
     terrain_position = VERTEX;
     terrain_normal = normalize(NORMAL);
@@ -314,13 +325,16 @@ void fragment() {
 
     // Variación cromática de escala grande para romper la repetición de las
     // muestras sin añadir texturas ni coste de geometría.
-    vec2 macro_cell = floor(p.xz * 0.115);
-    float macro_noise = hash2(macro_cell) * 0.08 + hash2(macro_cell * 0.37 + 19.0) * 0.05;
+    // Ruido interpolado en coordenadas de mundo para crear manchas orgánicas,
+    // sin los límites cuadrados que producía el muestreo por celdas.
+    float macro_a = value_noise(p.xz * 0.028);
+    float macro_b = value_noise(p.xz * 0.071 + vec2(37.2, 11.8));
+    float macro_noise = (macro_a - 0.5) * 0.19 + (macro_b - 0.5) * 0.055;
     grass = mix(vec3(0.15, 0.23, 0.12), grass, 0.38);
     dirt = mix(vec3(0.28, 0.22, 0.15), dirt, 0.32);
     sand = mix(vec3(0.48, 0.40, 0.27), sand, 0.28);
     rock = mix(vec3(0.27, 0.28, 0.27), rock, 0.34);
-    float biome_mix = smoothstep(0.40, 0.76, COLOR.r) * 0.42;
+    float biome_mix = smoothstep(0.34, 0.72, COLOR.r) * 0.50;
     float beach_mix = 1.0 - smoothstep(-1.2, 4.2, height);
     float highland_mix = smoothstep(21.0, 35.0, height) * 0.42;
     float rock_mix = max(smoothstep(0.20, 0.62, slope), highland_mix);
