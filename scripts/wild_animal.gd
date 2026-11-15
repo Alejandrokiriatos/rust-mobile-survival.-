@@ -132,9 +132,9 @@ func _play_state(state: String) -> void:
     var terms: Array[String] = []
     match state:
         "run":
-            terms = ["run", "gallop", "sprint"]
+            terms = ["run", "gallop", "sprint", "jog", "locomotion"]
         "walk":
-            terms = ["walk", "move"]
+            terms = ["walk", "trot", "move", "locomotion"]
         "attack":
             terms = ["attack", "bite"]
         _:
@@ -159,6 +159,14 @@ func _play_state(state: String) -> void:
         animation_state = state
         var blend_time := 0.16 if state == "walk" or state == "run" else 0.22
         animation_player.play(wanted, blend_time)
+    # Algunos modelos importados traen los ciclos de patas sin repetición.
+    # Fuerza bucle solo para locomoción; ataque e idle conservan su duración.
+    var selected_animation := animation_player.get_animation(wanted)
+    if selected_animation != null:
+        if state == "walk" or state == "run":
+            selected_animation.loop_mode = Animation.LOOP_LINEAR
+        else:
+            selected_animation.loop_mode = Animation.LOOP_NONE
     # Ajusta la cadencia del clip a la velocidad real del animal.
     animation_player.speed_scale = 1.35 if state == "run" else (0.82 if state == "walk" else 1.0)
 
