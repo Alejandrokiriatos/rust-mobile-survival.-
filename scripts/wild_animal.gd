@@ -145,8 +145,19 @@ func _play_state(state: String) -> void:
             animation_player.play(wanted)
 
 func take_damage(amount: float) -> void:
+    if health <= 0.0:
+        return
     health = maxf(0.0, health - amount)
     if health <= 0.0:
+        # La caza alimenta el ciclo de supervivencia: los animales dejan carne.
+        var players := get_tree().get_nodes_in_group("player")
+        if not players.is_empty() and players[0] is SurvivalPlayer:
+            var hunter := players[0] as SurvivalPlayer
+            var meat_yield := randi_range(1, 2) if is_predator else randi_range(2, 4)
+            hunter.collect("Comida", meat_yield)
+            var world := get_parent()
+            if world != null and world.has_method("show_message"):
+                world.call("show_message", "Animal cazado: +%d comida" % meat_yield)
         queue_free()
 
 func _choose_wander_target() -> void:
