@@ -2,61 +2,73 @@ extends Node3D
 
 class MinimapRadar extends Control:
     var world_ref: Node3D
-    var cached_coast := PackedVector2Array()
+    var terrain_map: Texture2D
     var redraw_elapsed := 0.0
 
     func _process(delta: float) -> void:
-        # El contorno se calcula una sola vez y el marcador se refresca a 10 Hz.
         redraw_elapsed += delta
-        if redraw_elapsed >= 0.1:
+        if redraw_elapsed >= 0.12:
             redraw_elapsed = 0.0
             queue_redraw()
 
+    func _build_terrain_map() -> void:
+        if terrain_map != null or world_ref == null:
+            return
+        # Mapa cenital del terreno completo: cada píxel consulta la misma
+        # función de altura y los mismos biomas que generan el mundo 3D.
+        var resolution := 192
+        var image := Image.create(resolution, resolution, false, Image.FORMAT_RGBA8)
+        for py in range(resolution):
+            for px in range(resolution):
+                var wx := (float(px) / float(resolution - 1) - 0.5) * 512.0
+                var wz := (float(py) / float(resolution - 1) - 0.5) * 512.0
+                var height: float = world_ref._height_at(wx, wz)
+                var color: Color
+                if height <= -2.5:
+                    var depth := clampf((-2.5 - height) / 12.0, 0.0, 1.0)
+                    color = Color(0.055, 0.24, 0.34).lerp(Color(0.025, 0.09, 0.19), depth)
+                elif height < 3.8:
+                    var shore := clampf((height + 2.5) / 6.3, 0.0, 1.0)
+                    color = Color(0.68, 0.63, 0.43).lerp(Color(0.82, 0.77, 0.57), shore)
+                elif height > 28.0:
+                    color = Color(0.43, 0.44, 0.40).lerp(Color(0.68, 0.67, 0.61), clampf((height - 28.0) / 15.0, 0.0, 1.0))
+                else:
+                    var biome: float = world_ref.biome_noise.get_noise_2d(wx, wz)
+                    color = Color(0.24, 0.39, 0.20).lerp(Color(0.38, 0.46, 0.25), clampf(biome * 0.8 + 0.5, 0.0, 1.0))
+                    if height > 19.0:
+                        color = color.lerp(Color(0.40, 0.42, 0.38), clampf((height - 19.0) / 13.0, 0.0, 0.55))
+                var normal: Vector3 = world_ref._terrain_normal_at(wx, wz)
+                var shade := clampf(0.76 + normal.dot(Vector3(-0.45, 0.82, -0.34)) * 0.24, 0.58, 1.08)
+                color = color * shade
+                image.set_pixel(px, py, color)
+        terrain_map = ImageTexture.create_from_image(image)
+
     func _draw() -> void:
-        var rect := Rect2(Vector2.ZERO, size)
-        draw_rect(rect, Color(0.035, 0.075, 0.065, 0.98), true)
-        var center := size * 0.5
-        for ring in range(1, 4):
-            draw_arc(center, minf(size.x, size.y) * float(ring) / 8.0, 0.0, TAU, 48, Color(0.45, 0.62, 0.48, 0.32), 1.0, true)
-        draw_line(Vector2(center.x, 2), Vector2(center.x, size.y - 2), Color(0.45, 0.62, 0.48, 0.22), 1.0)
-        draw_line(Vector2(2, center.y), Vector2(size.x - 2, center.y), Color(0.45, 0.62, 0.48, 0.22), 1.0)
         if world_ref == null or not is_instance_valid(world_ref):
             return
-        if cached_coast.is_empty():
-            for i in range(97):
-                var angle := TAU * float(i) / 96.0
-                var radius := 256.0
-                for step in range(1, 65):
-                    var candidate := 256.0 * float(step) / 64.0
-                    var sample := Vector2(cos(angle), sin(angle)) * candidate
-                    if world_ref._height_at(sample.x, sample.y) <= -1.5:
-                        radius = candidate
-                        break
-                var point := Vector2(cos(angle), sin(angle)) * radius
-                cached_coast.append(Vector2(point.x / 512.0 * size.x, point.y / 512.0 * size.y))
-        var coast := PackedVector2Array()
-        for point in cached_coast:
-            coast.append(center + point)
-        if coast.size() > 2:
-            draw_polyline(coast, Color(0.78, 0.79, 0.58, 0.9), 1.6, true)
-        var cabinet = world_ref.get("territory_cabinet")
-        if cabinet != null and is_instance_valid(cabinet):
-            var cabinet_pos: Vector3 = cabinet.global_position
-            var cabinet_map := center + Vector2(cabinet_pos.x / 512.0 * size.x, cabinet_pos.z / 512.0 * size.y)
-            var territory_map_radius := 28.0 / 512.0 * size.x
-            draw_arc(cabinet_map, territory_map_radius, 0.0, TAU, 64, Color(0.35, 0.88, 0.52, 0.9), 1.5, true)
-            draw_circle(cabinet_map, 4.0, Color(0.25, 0.95, 0.48))
-            draw_arc(cabinet_map, 6.5, 0.0, TAU, 24, Color(0.08, 0.10, 0.07), 1.4, true)
+        _build_terrain_map()
+        draw_rect(Rect2(Vector2.ZERO, size), Color(0.035, 0.055, 0.052), true)
+        if terrain_map != null:
+            draw_texture_rect(terrain_map, Rect2(Vector2.ZERO, size), false)
+        # Un marco fino sustituye las antiguas dianas y anillos decorativos.
+        draw_rect(Rect2(Vector2.ZERO, size), Color(0.80, 0.84, 0.72, 0.78), false, 1.2)
         var player_node = world_ref.get("player")
         if player_node != null and is_instance_valid(player_node):
             var pos: Vector3 = player_node.global_position
-            var map_pos := center + Vector2(pos.x / 512.0 * size.x, pos.z / 512.0 * size.y)
-            map_pos.x = clampf(map_pos.x, 4.0, size.x - 4.0)
-            map_pos.y = clampf(map_pos.y, 4.0, size.y - 4.0)
-            var heading: float = -player_node.rotation.y - PI * 0.5
-            draw_line(map_pos, map_pos + Vector2(cos(heading), sin(heading)) * 9.0, Color(1.0, 0.86, 0.35), 2.0)
-            draw_circle(map_pos, 4.5, Color(1.0, 0.82, 0.25))
-            draw_arc(map_pos, 7.0, 0.0, TAU, 24, Color(0.08, 0.10, 0.07), 1.5, true)
+            var map_pos := Vector2((pos.x / 512.0 + 0.5) * size.x, (pos.z / 512.0 + 0.5) * size.y)
+            map_pos.x = clampf(map_pos.x, 5.0, size.x - 5.0)
+            map_pos.y = clampf(map_pos.y, 5.0, size.y - 5.0)
+            # Flecha de jugador: el mapa permanece orientado al norte.
+            var heading: float = -player_node.rotation.y
+            var forward := Vector2(-sin(heading), cos(heading))
+            var side := Vector2(-forward.y, forward.x)
+            var arrow := PackedVector2Array([
+                map_pos + forward * 6.0,
+                map_pos - forward * 4.0 + side * 3.8,
+                map_pos - forward * 4.0 - side * 3.8
+            ])
+            draw_colored_polygon(arrow, Color(1.0, 0.88, 0.30))
+            draw_polyline(PackedVector2Array([arrow[0], arrow[1], arrow[2], arrow[0]]), Color(0.10, 0.12, 0.09), 1.0, true)
 
 const PLAYER_SCRIPT = preload("res://scripts/player.gd")
 const RESOURCE_SCRIPT = preload("res://scripts/resource_node.gd")
@@ -514,9 +526,36 @@ void fragment() {
     water.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
     add_child(water)
 
+func _find_beach_spawn() -> Vector3:
+    # Busca una playa real del terreno generado: arena por encima de la marea,
+    # pendiente suave y cerca de la línea de costa. No aparece en el centro.
+    var best_position := Vector3(0.0, _height_at(0.0, 0.0), 0.0)
+    var best_score := INF
+    for angle_step in range(48):
+        var angle := TAU * float(angle_step) / 48.0
+        for radius_step in range(82, 249, 2):
+            var x := cos(angle) * float(radius_step)
+            var z := sin(angle) * float(radius_step)
+            var height := _height_at(x, z)
+            if height <= WATER_LEVEL + 0.85 or height > 4.2:
+                continue
+            var normal := _terrain_normal_at(x, z)
+            if normal.y < 0.94:
+                continue
+            var score := absf(height - 1.2) + float(radius_step) * 0.0005
+            if score < best_score:
+                best_score = score
+                best_position = Vector3(x, height, z)
+    if best_score == INF:
+        push_warning("No se encontró una playa plana; se usa el punto seguro alternativo.")
+    return best_position
+
 func _make_player() -> void:
     player = SurvivalPlayer.new()
-    player.position = Vector3(0.0, _height_at(0.0, 0.0) + 0.25, 0.0)
+    var spawn := _find_beach_spawn()
+    player.position = Vector3(spawn.x, spawn.y + 0.28, spawn.z)
+    # Orienta al jugador hacia el interior de la isla desde la costa.
+    player.rotation.y = atan2(spawn.x, spawn.z)
     add_child(player)
 
 func _make_hud() -> void:
