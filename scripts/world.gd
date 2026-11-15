@@ -432,29 +432,36 @@ func _make_water() -> void:
     water.name = "AnimatedOcean"
     var water_mesh := PlaneMesh.new()
     water_mesh.size = Vector2(WORLD_SIZE + 80.0, WORLD_SIZE + 80.0)
-    # Subdivisiones suficientes para que las olas tengan desplazamiento geométrico real.
-    water_mesh.subdivide_width = 72
-    water_mesh.subdivide_depth = 72
+    water_mesh.subdivide_width = 96
+    water_mesh.subdivide_depth = 96
     water.mesh = water_mesh
     water.position.y = WATER_LEVEL
     var water_shader := Shader.new()
     water_shader.code = """
 shader_type spatial;
-render_mode blend_mix, depth_draw_opaque, cull_disabled, diffuse_burley, specular_schlick_ggx;
+render_mode blend_mix, depth_prepass_alpha, cull_disabled, diffuse_burley, specular_schlick_ggx;
 uniform vec4 deep_color : source_color = vec4(0.018, 0.105, 0.17, 0.96);
 uniform vec4 shallow_color : source_color = vec4(0.10, 0.36, 0.40, 0.94);
 uniform float wave_scale = 0.035;
 varying vec3 world_pos;
+varying float wave_height;
 
 void vertex() {
     vec3 p = VERTEX;
     float t = TIME;
-    float wave_a = sin(p.x * 0.052 + t * 0.82) * 0.105;
-    float wave_b = cos(p.y * 0.061 - t * 0.63) * 0.075;
-    float wave_c = sin((p.x + p.y) * 0.024 + t * 0.38) * 0.12;
+    float phase_a = p.x * 0.052 + t * 0.82;
+    float phase_b = p.z * 0.061 - t * 0.63;
+    float phase_c = (p.x + p.z) * 0.024 + t * 0.38;
+    float wave_a = sin(phase_a) * 0.105;
+    float wave_b = cos(phase_b) * 0.075;
+    float wave_c = sin(phase_c) * 0.12;
     p.y += wave_a + wave_b + wave_c;
     VERTEX = p;
+    float slope_x = cos(phase_a) * 0.105 * 0.052 + cos(phase_c) * 0.12 * 0.024;
+    float slope_z = -sin(phase_b) * 0.075 * 0.061 + cos(phase_c) * 0.12 * 0.024;
+    NORMAL = normalize(vec3(-slope_x, 1.0, -slope_z));
     world_pos = (MODEL_MATRIX * vec4(p, 1.0)).xyz;
+    wave_height = wave_a + wave_b + wave_c;
 }
 
 void fragment() {
@@ -464,13 +471,15 @@ void fragment() {
     float ripple_b = sin(uv_b.x * 6.28318 + 1.2) * cos(uv_b.y * 6.28318);
     float ripples = ripple_a * 0.5 + ripple_b * 0.5;
     float fresnel = pow(1.0 - clamp(dot(normalize(NORMAL), normalize(VIEW)), 0.0, 1.0), 2.2);
+    float foam = smoothstep(0.72, 0.94, ripples + abs(wave_height) * 1.5);
     vec3 water_color = mix(deep_color.rgb, shallow_color.rgb, clamp(0.30 + ripples * 0.10 + fresnel * 0.32, 0.0, 1.0));
-    water_color += vec3(0.035, 0.075, 0.078) * smoothstep(0.58, 0.92, ripples);
+    water_color += vec3(0.035, 0.075, 0.078) * smoothstep(0.48, 0.88, ripples);
+    water_color = mix(water_color, vec3(0.62, 0.78, 0.72), foam * 0.22);
     ALBEDO = water_color;
-    ROUGHNESS = 0.19 + (1.0 - fresnel) * 0.12;
+    ROUGHNESS = 0.18 + (1.0 - fresnel) * 0.14;
     METALLIC = 0.06;
-    SPECULAR = 0.72;
-    ALPHA = 0.94;
+    SPECULAR = 0.78;
+    ALPHA = 0.96;
 }
 """
     var water_material := ShaderMaterial.new()
