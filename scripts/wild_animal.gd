@@ -53,10 +53,17 @@ func _build_visual() -> void:
                 print(species, " animaciones: ", animation_player.get_animation_list())
         else:
             push_warning("Godot no pudo importar el modelo de " + species)
+    # La colisión acompaña la escala visual para evitar animales gigantes
+    # con cápsulas de tamaño incorrecto o patas que parecen flotar.
     var collider := CollisionShape3D.new()
     var shape := CapsuleShape3D.new()
-    shape.radius = 0.38 if not is_predator else 0.43
-    shape.height = 1.35 if species in ["Fox", "ShibaInu", "Husky"] else 1.65
+    var base_height := 1.65
+    if species in ["Fox", "ShibaInu", "Husky", "Wolf"]:
+        base_height = 1.35
+    elif species in ["Alpaca", "Donkey"]:
+        base_height = 1.48
+    shape.radius = (0.38 if not is_predator else 0.43) * model_scale
+    shape.height = maxf(0.72, base_height * model_scale)
     collider.shape = shape
     collider.position.y = shape.height * 0.5
     add_child(collider)
