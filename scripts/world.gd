@@ -225,18 +225,18 @@ func _make_environment() -> void:
     e.sky = sky
     e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
     e.ambient_light_color = Color(0.72, 0.79, 0.9)
-    e.ambient_light_energy = 0.75
+    e.ambient_light_energy = 0.52
     e.tonemap_mode = Environment.TONE_MAPPER_FILMIC
     e.fog_enabled = true
     e.fog_light_color = Color(0.58, 0.72, 0.78)
-    e.fog_density = 0.0012
+    e.fog_density = 0.00085
     e.fog_sky_affect = 0.65
     env.environment = e
     add_child(env)
     world_environment = e
     sun_light = DirectionalLight3D.new()
     sun_light.rotation_degrees = Vector3(-48, -32, 0)
-    sun_light.light_energy = 1.0
+    sun_light.light_energy = 0.92
     sun_light.shadow_enabled = true
     sun_light.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
     sun_light.directional_shadow_max_distance = 65.0
@@ -280,28 +280,54 @@ uniform sampler2D sand_tex : source_color, repeat_enable, filter_linear_mipmap;
 uniform sampler2D rock_tex : source_color, repeat_enable, filter_linear_mipmap;
 varying vec3 terrain_position;
 varying vec3 terrain_normal;
+
+vec3 triplanar(sampler2D tex, vec3 p, vec3 n, float scale) {
+    vec3 weights = pow(abs(normalize(n)), vec3(4.0));
+    weights /= max(weights.x + weights.y + weights.z, 0.0001);
+    vec3 x_axis = texture(tex, p.zy * scale).rgb;
+    vec3 y_axis = texture(tex, p.xz * scale).rgb;
+    vec3 z_axis = texture(tex, p.xy * scale).rgb;
+    return x_axis * weights.x + y_axis * weights.y + z_axis * weights.z;
+}
+
+float hash2(vec2 p) {
+    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
+
 void vertex() {
     terrain_position = VERTEX;
     terrain_normal = normalize(NORMAL);
 }
+
 void fragment() {
-    vec2 terrain_uv = terrain_position.xz * 0.095;
-    float height = terrain_position.y;
-    float slope = 1.0 - clamp(normalize(terrain_normal).y, 0.0, 1.0);
-    vec3 grass = texture(grass_tex, terrain_uv).rgb;
-    vec3 dirt = texture(dirt_tex, terrain_uv * 0.82).rgb;
-    vec3 sand = texture(sand_tex, terrain_uv * 0.72).rgb;
-    vec3 rock = texture(rock_tex, terrain_uv * 0.58).rgb;
-    float biome_mix = smoothstep(0.52, 0.86, COLOR.r) * 0.48;
-    float beach_mix = 1.0 - smoothstep(-0.9, 3.6, height);
-    float highland_mix = smoothstep(22.0, 34.0, height) * 0.35;
-    float rock_mix = max(smoothstep(0.18, 0.58, slope), highland_mix);
+    vec3 p = terrain_position;
+    vec3 n = normalize(terrain_normal);
+    float height = p.y;
+    float slope = 1.0 - clamp(n.y, 0.0, 1.0);
+
+    // Proyección triplanar en espacio mundo: evita costuras entre chunks y
+    // reduce las bandas y estiramientos visibles en pendientes.
+    vec3 grass = triplanar(grass_tex, p, n, 0.052);
+    vec3 dirt = triplanar(dirt_tex, p, n, 0.043);
+    vec3 sand = triplanar(sand_tex, p, n, 0.038);
+    vec3 rock = triplanar(rock_tex, p, n, 0.036);
+
+    // Variación cromática de escala grande para romper la repetición de las
+    // muestras sin añadir texturas ni coste de geometría.
+    vec2 macro_cell = floor(p.xz * 0.115);
+    float macro_noise = hash2(macro_cell) * 0.10 + hash2(macro_cell * 0.37 + 19.0) * 0.06;
+    float biome_mix = smoothstep(0.40, 0.76, COLOR.r) * 0.42;
+    float beach_mix = 1.0 - smoothstep(-1.2, 4.2, height);
+    float highland_mix = smoothstep(21.0, 35.0, height) * 0.42;
+    float rock_mix = max(smoothstep(0.20, 0.62, slope), highland_mix);
+
     vec3 ground = mix(grass, dirt, biome_mix);
     ground = mix(ground, sand, beach_mix);
     ground = mix(ground, rock, rock_mix);
+    ground *= 0.94 + macro_noise;
     ALBEDO = ground;
-    ROUGHNESS = 0.94;
-    SPECULAR = 0.12;
+    ROUGHNESS = 0.97;
+    SPECULAR = 0.08;
 }
 """
     var material := ShaderMaterial.new()
