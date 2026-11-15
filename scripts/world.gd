@@ -271,7 +271,6 @@ func _make_environment() -> void:
     sun_light.shadow_bias = 0.12
     sun_light.shadow_normal_bias = 1.8
     sun_light.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
-    sun_light.directional_shadow_max_distance = 65.0
     sun_light.directional_shadow_fade_start = 0.8
     add_child(sun_light)
 
@@ -1020,30 +1019,56 @@ func _add_sprint_button() -> void:
     control_layer.add_child(button)
 
 func _make_craft_panel() -> void:
+    # Fabricación ocupa el 80% de la pantalla y se adapta a móviles/tablets.
     craft_panel = PanelContainer.new()
-    craft_panel.anchor_left = 1.0
-    craft_panel.anchor_right = 1.0
-    craft_panel.position = Vector2(-184, 112)
-    craft_panel.size = Vector2(170, 270)
+    craft_panel.anchor_left = 0.10
+    craft_panel.anchor_right = 0.90
+    craft_panel.anchor_top = 0.10
+    craft_panel.anchor_bottom = 0.90
+    craft_panel.offset_left = 0.0
+    craft_panel.offset_right = 0.0
+    craft_panel.offset_top = 0.0
+    craft_panel.offset_bottom = 0.0
     craft_panel.visible = false
+    craft_panel.z_index = 20
     var style := StyleBoxFlat.new()
-    style.bg_color = Color(0.025, 0.055, 0.045, 0.94)
-    style.set_corner_radius_all(12)
-    style.set_content_margin_all(8)
+    style.bg_color = Color(0.025, 0.055, 0.045, 0.96)
+    style.border_color = Color(0.72, 0.82, 0.70, 0.82)
+    style.set_border_width_all(2)
+    style.set_corner_radius_all(14)
+    style.set_content_margin_all(14)
     craft_panel.add_theme_stylebox_override("panel", style)
-    var list := VBoxContainer.new()
-    list.add_theme_constant_override("separation", 6)
-    craft_panel.add_child(list)
+
+    var content := VBoxContainer.new()
+    content.add_theme_constant_override("separation", 10)
+    craft_panel.add_child(content)
     var title := Label.new()
-    title.text = "SUPERVIVENCIA"
+    title.text = "MESA DE FABRICACIÓN"
     title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-    title.add_theme_font_size_override("font_size", 14)
-    list.add_child(title)
-    _add_craft_option(list, "ARMARIO  8M + 4P + 4F", _craft_territory_cabinet)
-    _add_craft_option(list, "HACHA  3M + 2P", _craft_axe)
-    _add_craft_option(list, "REFUGIO  12M + 6F", _craft_shelter)
-    _add_craft_option(list, "FOGATA  5M + 3P", _craft_campfire)
-    _add_craft_option(list, "RACIONES  1M + 3F", _craft_rations)
+    title.add_theme_font_size_override("font_size", 20)
+    title.add_theme_color_override("font_color", Color(0.91, 0.94, 0.84))
+    content.add_child(title)
+    var subtitle := Label.new()
+    subtitle.text = "Selecciona una receta · Los materiales se descuentan al fabricar"
+    subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    subtitle.add_theme_font_size_override("font_size", 12)
+    subtitle.add_theme_color_override("font_color", Color(0.72, 0.79, 0.70))
+    content.add_child(subtitle)
+
+    var scroll := ScrollContainer.new()
+    scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+    scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+    content.add_child(scroll)
+    var list := VBoxContainer.new()
+    list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    list.add_theme_constant_override("separation", 9)
+    scroll.add_child(list)
+    _add_craft_option(list, "ARMARIO PRINCIPAL  ·  8 MADERA + 4 PIEDRA + 4 FIBRA", _craft_territory_cabinet)
+    _add_craft_option(list, "HACHA  ·  3 MADERA + 2 PIEDRA", _craft_axe)
+    _add_craft_option(list, "REFUGIO  ·  12 MADERA + 6 FIBRA", _craft_shelter)
+    _add_craft_option(list, "FOGATA  ·  5 MADERA + 3 PIEDRA", _craft_campfire)
+    _add_craft_option(list, "RACIONES  ·  1 MADERA + 3 FIBRA", _craft_rations)
     _add_craft_option(list, "COMER", _eat)
     _add_craft_option(list, "BEBER", _drink)
     _add_craft_option(list, "CERRAR", _toggle_craft_panel)
@@ -1052,8 +1077,10 @@ func _make_craft_panel() -> void:
 func _add_craft_option(parent: VBoxContainer, title: String, callback: Callable) -> void:
     var button := Button.new()
     button.text = title
-    button.custom_minimum_size = Vector2(150, 28)
-    button.add_theme_font_size_override("font_size", 12)
+    button.custom_minimum_size = Vector2(0, 46)
+    button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    button.add_theme_font_size_override("font_size", 13)
+    button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
     _style_action_button(button)
     button.pressed.connect(callback)
     parent.add_child(button)
