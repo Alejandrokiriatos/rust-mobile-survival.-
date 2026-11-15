@@ -619,7 +619,7 @@ func _make_hud() -> void:
     map_col.add_theme_constant_override("separation", 4)
     map.add_child(map_col)
     var map_title := Label.new()
-    map_title.text = "  MAPA  /  LOCALIZACIÓN"
+    map_title.text = "  MAPA  /  TERRENO  ·  N ↑"
     map_title.add_theme_font_size_override("font_size", 10)
     map_title.add_theme_color_override("font_color", Color(0.77, 0.86, 0.77))
     map_col.add_child(map_title)
@@ -1174,7 +1174,10 @@ func _eat() -> void:
     message.text = "Comiste una ración."
 
 func _drink() -> void:
-    var near_water := absf(player.global_position.y - WATER_LEVEL) < 3.0 and Vector2(player.global_position.x, player.global_position.z).length() > WORLD_SIZE * 0.35
+    # Comprueba la altura real del suelo: el jugador puede estar sobre arena
+    # seca aunque su posición global esté varios metros sobre el nivel del agua.
+    var ground_height := _height_at(player.global_position.x, player.global_position.z)
+    var near_water := ground_height <= WATER_LEVEL + 7.0 and Vector2(player.global_position.x, player.global_position.z).length() > WORLD_SIZE * 0.30
     if near_water:
         player.restore_needs(0.0, 45.0)
         message.text = "Bebiste agua de la costa."
