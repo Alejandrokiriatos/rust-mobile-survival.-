@@ -1263,8 +1263,17 @@ func _load_game() -> void:
         elif resource_remaining_state.has(node_id):
             resource_node.remaining = int(resource_remaining_state[node_id])
     var structures: Array = config.get_value("world", "structures", [])
+    territory_cabinet = null
+    var restored_cabinet := false
     for entry in structures:
-        _place_buildable(str(entry.get("kind", "Refugio")), entry.get("position", Vector3.ZERO), str(entry.get("owner_id", LOCAL_OWNER_ID)))
+        var kind := str(entry.get("kind", "Refugio"))
+        # Migración segura de partidas antiguas: el primer armario guardado
+        # conserva la propiedad; no se restauran armarios principales duplicados.
+        if kind == "Armario principal":
+            if restored_cabinet:
+                continue
+            restored_cabinet = true
+        _place_buildable(kind, entry.get("position", Vector3.ZERO), str(entry.get("owner_id", LOCAL_OWNER_ID)))
 
 func _set_action_icon(button: Button, icon_name: String) -> void:
     var icon_path := MOBILE_ICON_PATH + icon_name + ".svg"
