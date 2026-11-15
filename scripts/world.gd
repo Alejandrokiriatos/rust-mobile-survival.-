@@ -75,18 +75,20 @@ class MinimapRadar extends Control:
         if world_ref == null or not is_instance_valid(world_ref):
             return
         _build_terrain_map()
-        draw_rect(Rect2(Vector2.ZERO, size), Color(0.035, 0.055, 0.052, 0.18), true)
-        if terrain_map != null:
-            draw_texture_rect(terrain_map, Rect2(Vector2.ZERO, size), false)
-        # Un marco fino sustituye las antiguas dianas y anillos decorativos.
-        draw_rect(Rect2(Vector2.ZERO, size), Color(0.80, 0.84, 0.72, 0.78), false, 1.2)
+        draw_rect(Rect2(Vector2.ZERO, size), Color(0.035, 0.055, 0.052, 0.22), true)
         var player_node = world_ref.get("player")
-        if player_node != null and is_instance_valid(player_node):
+        if terrain_map != null and player_node != null and is_instance_valid(player_node):
+            # Ventana local: 96 m de terreno alrededor del jugador, no el mundo entero.
+            # El mapa sigue orientado al norte y el jugador permanece centrado.
+            const VIEW_DIAMETER := 112.0
             var pos: Vector3 = player_node.global_position
-            var map_pos := Vector2((pos.x / 512.0 + 0.5) * size.x, (pos.z / 512.0 + 0.5) * size.y)
-            map_pos.x = clampf(map_pos.x, 5.0, size.x - 5.0)
-            map_pos.y = clampf(map_pos.y, 5.0, size.y - 5.0)
-            # Flecha de jugador: el mapa permanece orientado al norte.
+            var map_center := Vector2((pos.x / 512.0 + 0.5) * 192.0, (pos.z / 512.0 + 0.5) * 192.0)
+            var source_size := Vector2.ONE * (VIEW_DIAMETER / 512.0 * 192.0)
+            var source := Rect2(map_center - source_size * 0.5, source_size)
+            source.position.x = clampf(source.position.x, 0.0, 192.0 - source_size.x)
+            source.position.y = clampf(source.position.y, 0.0, 192.0 - source_size.y)
+            draw_texture_rect_region(terrain_map, Rect2(Vector2.ZERO, size), source, Color.WHITE, false)
+            var map_pos := size * 0.5
             var heading: float = -player_node.rotation.y
             var forward := Vector2(-sin(heading), -cos(heading))
             var side := Vector2(-forward.y, forward.x)
@@ -97,6 +99,8 @@ class MinimapRadar extends Control:
             ])
             draw_colored_polygon(arrow, Color(1.0, 0.88, 0.30))
             draw_polyline(PackedVector2Array([arrow[0], arrow[1], arrow[2], arrow[0]]), Color(0.10, 0.12, 0.09), 1.0, true)
+        # Marco fijo del radar.
+        draw_rect(Rect2(Vector2.ZERO, size), Color(0.80, 0.84, 0.72, 0.78), false, 1.2)
 
 const PLAYER_SCRIPT = preload("res://scripts/player.gd")
 const RESOURCE_SCRIPT = preload("res://scripts/resource_node.gd")
