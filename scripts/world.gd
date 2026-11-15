@@ -1206,13 +1206,25 @@ func _spawn_wildlife() -> void:
     ]
     for data in species_data:
         var placed := false
-        for attempt in range(18):
+        for attempt in range(36):
             var angle := rng.randf_range(0.0, TAU)
-            var radius := rng.randf_range(58.0, WORLD_SIZE * 0.34)
+            var radius := rng.randf_range(48.0, WORLD_SIZE * 0.39)
             var x := cos(angle) * radius
             var z := sin(angle) * radius
             var y := _height_at(x, z)
-            if y <= WATER_LEVEL + 1.0:
+            var biome := biome_noise.get_noise_2d(x, z)
+            var ridge := ridge_noise.get_noise_2d(x, z)
+            var normal := _terrain_normal_at(x, z)
+            if y <= WATER_LEVEL + 1.0 or normal.y < 0.82:
+                continue
+            # Fauna por hábitat: herbívoros en praderas, depredadores
+            # en el interior boscoso y animales resistentes en laderas.
+            var species_name := str(data["species"])
+            if species_name == "Wolf" and (radius < 112.0 or biome < -0.05):
+                continue
+            if species_name in ["Deer", "Stag", "Cow", "Bull", "Horse", "Horse_White", "Alpaca", "Donkey"] and (y > 27.0 or ridge > 0.62):
+                continue
+            if species_name in ["Fox", "Husky", "ShibaInu"] and radius < 70.0:
                 continue
             var animal: WildAnimal = ANIMAL_SCRIPT.new()
             data["path"] = "res://assets/quaternius/ultimate-animated-animals/" + str(data["file"])
@@ -1389,16 +1401,20 @@ func _scatter_resources() -> void:
                 continue
             # Cada recurso tiene un hábitat propio: bosque, ladera rocosa o matorral.
             if kind == "Madera":
-                if biome < -0.22 or y < 1.5 or y > 31.0 or slope > 0.38:
+                # La franja de arena queda despejada para que el jugador
+                # pueda orientarse al aparecer; los árboles empiezan tierra adentro.
+                if biome < -0.22 or y < 6.0 or y > 31.0 or slope > 0.38:
                     continue
                 if rng.randf() > clampf(0.82 + biome * 0.16, 0.58, 0.96):
                     continue
             elif kind == "Piedra":
-                if y < 3.5 and ridge < 0.18:
+                # Las rocas grandes se concentran en terreno elevado o con crestas.
+                if y < 8.0 and ridge < 0.28:
                     continue
                 if rng.randf() > clampf(0.54 + maxf(ridge, 0.0) * 0.42 + slope * 0.22, 0.48, 0.96):
                     continue
             elif kind == "Fibra":
+                # Fibra y matorral son el recurso de transición entre playa y bosque.
                 if y > 29.0 or slope > 0.42:
                     continue
                 if rng.randf() > clampf(0.82 - maxf(biome, 0.0) * 0.20, 0.52, 0.90):
