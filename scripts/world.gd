@@ -1508,7 +1508,12 @@ func _add_foliage_multimesh(model_path: String, per_chunk: int, min_scale: float
                     elif biome_value > 0.35:
                         scale_value *= 1.12
                     var yaw := rng.randf_range(0.0, TAU)
-                    var basis := Basis(Vector3.UP, yaw).scaled(Vector3.ONE * scale_value)
+                    # Los modelos de hierba del pack son muy estrechos: ampliar solo
+                    # su huella horizontal mejora la cobertura sin convertirlos en matas altas.
+                    var foliage_scale := Vector3.ONE * scale_value
+                    if model_path.contains("Grass_"):
+                        foliage_scale = Vector3(scale_value * 1.7, scale_value * 0.72, scale_value * 1.7)
+                    var basis := Basis(Vector3.UP, yaw).scaled(foliage_scale)
                     var placement := Transform3D(basis, Vector3(local_x, ground_y, local_z))
                     # Conserva la posición y orientación internas de cada pieza del modelo GLTF.
                     multi.set_instance_transform(index, placement * source_mesh.transform)
