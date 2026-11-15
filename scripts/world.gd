@@ -1022,16 +1022,18 @@ func _craft_shelter() -> void:
     if not _has_cost(12, 0, 6):
         message.text = "Necesitas 12 madera y 6 fibra."
         return
+    if not _place_buildable("Refugio"):
+        return
     _pay_cost(12, 0, 6)
-    _place_buildable("Refugio")
     message.text = "Refugio construido."
 
 func _craft_campfire() -> void:
     if not _has_cost(5, 3, 0):
         message.text = "Necesitas 5 madera y 3 piedra."
         return
+    if not _place_buildable("Fogata"):
+        return
     _pay_cost(5, 3, 0)
-    _place_buildable("Fogata")
     message.text = "Fogata encendida: ilumina de noche."
 
 func _craft_rations() -> void:
@@ -1042,17 +1044,31 @@ func _craft_rations() -> void:
     player.inventory["Comida"] = int(player.inventory.get("Comida", 0)) + 2
     message.text = "Preparaste 2 raciones."
 
-func _place_buildable(kind: String, saved_position: Vector3 = Vector3.INF) -> void:
+func _place_buildable(kind: String, saved_position: Vector3 = Vector3.INF) -> bool:
+    var candidate := saved_position
+    if saved_position == Vector3.INF:
+        if not is_instance_valid(player):
+            return false
+        var forward := -player.global_transform.basis.z
+        candidate = player.global_position + forward * (3.2 if kind == "Refugio" else 2.4)
+        candidate.y = _height_at(candidate.x, candidate.z)
+        var normal := _terrain_normal_at(candidate.x, candidate.z)
+        if candidate.y <= WATER_LEVEL + 2.0:
+            message.text = "No puedes construir en el agua ni junto a la marea."
+            return false
+        if normal.y < 0.88:
+            message.text = "Terreno demasiado inclinado: busca una zona más llana."
+            return false
+        var min_distance := 3.8 if kind == "Refugio" else 1.8
+        for existing in get_tree().get_nodes_in_group("buildables"):
+            if is_instance_valid(existing) and Vector2(existing.global_position.x - candidate.x, existing.global_position.z - candidate.z).length() < min_distance:
+                message.text = "Hay otra construcción demasiado cerca."
+                return false
     var structure: SurvivalBuildable = BUILDABLE_SCRIPT.new()
     structure.build_kind = kind
-    if saved_position == Vector3.INF:
-        var forward := -player.global_transform.basis.z
-        var candidate := player.global_position + forward * 3.2
-        candidate.y = _height_at(candidate.x, candidate.z)
-        structure.position = candidate
-    else:
-        structure.position = saved_position
+    structure.position = candidate
     add_child(structure)
+    return true
 
 func _eat() -> void:
     if int(player.inventory.get("Comida", 0)) <= 0:
