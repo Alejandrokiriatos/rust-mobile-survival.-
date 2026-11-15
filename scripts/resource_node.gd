@@ -40,7 +40,11 @@ func harvest(player: SurvivalPlayer) -> String:
     if remaining <= 0:
         return "Agotado"
     remaining -= 1
-    var yield_amount := 2 if resource_type == "Madera" and player.axe_unlocked else 1
+    var yield_amount := 1
+    if resource_type == "Madera" and player.equipped_tool == "axe" and player.axe_unlocked:
+        yield_amount = 2
+    elif resource_type == "Piedra" and player.equipped_tool == "pickaxe" and player.pickaxe_unlocked:
+        yield_amount = 2
     player.collect(resource_type, yield_amount)
     var world := get_parent()
     if world != null and world.has_method("on_resource_harvested"):
