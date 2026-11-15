@@ -14,6 +14,9 @@ var camera: Camera3D
 var joystick: MobileJoystick
 var sprinting := false
 var axe_unlocked := false
+var pickaxe_unlocked := false
+var torch_unlocked := false
+var equipped_tool := "stone"
 var inventory := {"Madera": 0, "Piedra": 0, "Fibra": 0, "Comida": 0, "Agua": 0}
 var health := 100.0
 var hunger := 100.0
