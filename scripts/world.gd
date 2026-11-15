@@ -172,7 +172,13 @@ func _process(delta: float) -> void:
     if is_instance_valid(compass_label):
         var heading := fposmod(rad_to_deg(player.rotation.y) + 360.0, 360.0)
         var directions := ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
-        compass_label.text = "N     NE     E     SE     S     SW     W     NW\\n▲  %s  ·  %03d°" % [directions[int(roundi(heading / 45.0)) % 8], roundi(heading)]
+        var center_index := int(roundi(heading / 45.0)) % 8
+        var tape := ""
+        for offset in range(-3, 4):
+            var direction_index := posmod(center_index + offset, 8)
+            var direction_name: String = directions[direction_index]
+            tape += ("   " if offset < 0 else "  ") + direction_name
+        compass_label.text = tape.strip_edges() + "\n" + "▲  %s  ·  %03d°" % [directions[center_index], roundi(heading)]
     if is_instance_valid(minimap_coords):
         minimap_coords.text = "X %d  Z %d" % [roundi(player.global_position.x), roundi(player.global_position.z)]
     for item_name in inventory_item_labels:
@@ -590,16 +596,17 @@ func _make_hud() -> void:
     var compass_panel := PanelContainer.new()
     compass_panel.anchor_left = 0.5
     compass_panel.anchor_right = 0.5
-    compass_panel.position = Vector2(-180, 10)
-    compass_panel.custom_minimum_size = Vector2(360, 58)
+    compass_panel.position = Vector2(-190, 8)
+    compass_panel.custom_minimum_size = Vector2(380, 66)
     _style_action_panel(compass_panel)
     control_layer.add_child(compass_panel)
     compass_label = Label.new()
     compass_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
     compass_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-    compass_label.add_theme_font_size_override("font_size", 14)
+    compass_label.custom_minimum_size = Vector2(360, 58)
+    compass_label.add_theme_font_size_override("font_size", 13)
     compass_label.add_theme_color_override("font_color", Color(0.96, 0.94, 0.82))
-    compass_label.text = "N     NE     E     SE     S     SW     W     NW\\n▲  RUMBO 000°"
+    compass_label.text = "NW   N   NE   E   SE   S   SW\n▲  RUMBO 000°"
     compass_panel.add_child(compass_label)
 
     day_label = Label.new()
