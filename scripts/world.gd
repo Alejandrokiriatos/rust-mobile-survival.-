@@ -97,6 +97,10 @@ var inventory_summary: Label
 var hotbar_slots: Array[Button] = []
 var selected_hotbar_index := 0
 var attack_cooldown := 0.0
+var territory_cabinet: SurvivalBuildable
+var territory_label: Label
+const TERRITORY_RADIUS := 28.0
+const LOCAL_OWNER_ID := "local_player"
 
 func _ready() -> void:
     rng.seed = 48123
@@ -154,6 +158,8 @@ func _process(delta: float) -> void:
         inventory_summary.text = "MADERA     %03d\nPIEDRA       %03d\nFIBRA          %03d\nCOMIDA      %03d\nAGUA           %03d" % [player.inventory["Madera"], player.inventory["Piedra"], player.inventory["Fibra"], player.inventory["Comida"], player.inventory["Agua"]]
     if is_instance_valid(day_label):
         day_label.text = "%s · DÍA %d" % [_time_of_day_name(), int(day_clock) + 1]
+    if is_instance_valid(territory_label):
+        territory_label.text = _territory_status_text()
 func _configure_noise() -> void:
     terrain_noise.seed = 48123
     terrain_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX
@@ -548,6 +554,11 @@ func _make_hud() -> void:
     day_label.add_theme_font_size_override("font_size", 12)
     day_label.add_theme_color_override("font_color", Color(0.96, 0.91, 0.73))
     control_layer.add_child(day_label)
+    territory_label = Label.new()
+    territory_label.position = Vector2(18, 166)
+    territory_label.add_theme_font_size_override("font_size", 11)
+    territory_label.add_theme_color_override("font_color", Color(0.78, 0.91, 0.72))
+    control_layer.add_child(territory_label)
 
     # Minimapa con marco sobrio y coordenadas legibles.
     var map := PanelContainer.new()
@@ -964,7 +975,7 @@ func _make_craft_panel() -> void:
     craft_panel.anchor_left = 1.0
     craft_panel.anchor_right = 1.0
     craft_panel.position = Vector2(-184, 112)
-    craft_panel.size = Vector2(170, 230)
+    craft_panel.size = Vector2(170, 270)
     craft_panel.visible = false
     var style := StyleBoxFlat.new()
     style.bg_color = Color(0.025, 0.055, 0.045, 0.94)
@@ -979,6 +990,7 @@ func _make_craft_panel() -> void:
     title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
     title.add_theme_font_size_override("font_size", 14)
     list.add_child(title)
+    _add_craft_option(list, "ARMARIO  8M + 4P + 4F", _craft_territory_cabinet)
     _add_craft_option(list, "HACHA  3M + 2P", _craft_axe)
     _add_craft_option(list, "REFUGIO  12M + 6F", _craft_shelter)
     _add_craft_option(list, "FOGATA  5M + 3P", _craft_campfire)
@@ -1018,6 +1030,18 @@ func _craft_axe() -> void:
     else:
         message.text = "Necesitas 3 madera y 2 piedra."
 
+func _craft_territory_cabinet() -> void:
+    if is_instance_valid(territory_cabinet):
+        message.text = "Ya tienes un armario principal reclamando esta zona."
+        return
+    if not _has_cost(8, 4, 4):
+        message.text = "Necesitas 8 madera, 4 piedra y 4 fibra para el armario."
+        return
+    if not _place_buildable("Armario principal"):
+        return
+    _pay_cost(8, 4, 4)
+    message.text = "Zona reclamada: solo el propietario puede construir aquí."
+
 func _craft_shelter() -> void:
     if not _has_cost(12, 0, 6):
         message.text = "Necesitas 12 madera y 6 fibra."
@@ -1044,7 +1068,7 @@ func _craft_rations() -> void:
     player.inventory["Comida"] = int(player.inventory.get("Comida", 0)) + 2
     message.text = "Preparaste 2 raciones."
 
-func _place_buildable(kind: String, saved_position: Vector3 = Vector3.INF) -> bool:
+func _place_buildable(kind: String, saved_position: Vector3 = Vector3.INF, saved_owner: String = LOCAL_OWNER_ID) -> bool:
     var candidate := saved_position
     if saved_position == Vector3.INF:
         if not is_instance_valid(player):
@@ -1059,6 +1083,19 @@ func _place_buildable(kind: String, saved_position: Vector3 = Vector3.INF) -> bo
         if normal.y < 0.88:
             message.text = "Terreno demasiado inclinado: busca una zona más llana."
             return false
+        if kind == "Armario principal" and is_instance_valid(territory_cabinet):
+            message.text = "Solo puedes tener un armario principal por base."
+            return false
+        if kind != "Armario principal" and is_instance_valid(territory_cabinet):
+            if territory_cabinet.owner_id != LOCAL_OWNER_ID:
+                message.text = "No tienes autorización de construcción en esta zona."
+                return false
+            if Vector2(territory_cabinet.global_position.x - candidate.x, territory_cabinet.global_position.z - candidate.z).length() > TERRITORY_RADIUS:
+                message.text = "Fuera del territorio reclamado. Acércate al armario principal."
+                return false
+        elif kind != "Armario principal" and not get_tree().get_nodes_in_group("buildables").is_empty():
+            message.text = "Necesitas un armario principal para reclamar y proteger tu base."
+            return false
         var min_distance := 3.8 if kind == "Refugio" else 1.8
         for existing in get_tree().get_nodes_in_group("buildables"):
             if is_instance_valid(existing) and Vector2(existing.global_position.x - candidate.x, existing.global_position.z - candidate.z).length() < min_distance:
@@ -1066,9 +1103,20 @@ func _place_buildable(kind: String, saved_position: Vector3 = Vector3.INF) -> bo
                 return false
     var structure: SurvivalBuildable = BUILDABLE_SCRIPT.new()
     structure.build_kind = kind
+    structure.owner_id = saved_owner
     structure.position = candidate
     add_child(structure)
+    if kind == "Armario principal":
+        territory_cabinet = structure
     return true
+
+func _territory_status_text() -> String:
+    if not is_instance_valid(territory_cabinet):
+        return "TERRITORIO: SIN RECLAMAR · Fabrica un armario principal"
+    var distance := Vector2(player.global_position.x - territory_cabinet.global_position.x, player.global_position.z - territory_cabinet.global_position.z).length()
+    if distance <= TERRITORY_RADIUS:
+        return "BASE PROTEGIDA · Propietario · Radio %.0f m" % TERRITORY_RADIUS
+    return "FUERA DE TU TERRITORIO · Armario a %.0f m" % distance
 
 func _eat() -> void:
     if int(player.inventory.get("Comida", 0)) <= 0:
@@ -1174,7 +1222,7 @@ func _save_game(show_message: bool = true) -> void:
     config.set_value("world", "depleted_resources", depleted_resource_ids.keys())
     var structures: Array[Dictionary] = []
     for item in get_tree().get_nodes_in_group("buildables"):
-        structures.append({"kind": item.build_kind, "position": item.global_position})
+        structures.append({"kind": item.build_kind, "position": item.global_position, "owner_id": item.owner_id})
     config.set_value("world", "structures", structures)
     var error := config.save("user://rust_mobile_save.cfg")
     if show_message and is_instance_valid(message):
@@ -1208,7 +1256,7 @@ func _load_game() -> void:
             resource_node.remaining = int(resource_remaining_state[node_id])
     var structures: Array = config.get_value("world", "structures", [])
     for entry in structures:
-        _place_buildable(str(entry.get("kind", "Refugio")), entry.get("position", Vector3.ZERO))
+        _place_buildable(str(entry.get("kind", "Refugio")), entry.get("position", Vector3.ZERO), str(entry.get("owner_id", LOCAL_OWNER_ID)))
 
 func _set_action_icon(button: Button, icon_name: String) -> void:
     var icon_path := MOBILE_ICON_PATH + icon_name + ".svg"
