@@ -6,6 +6,7 @@ class MinimapRadar extends Control:
     var redraw_elapsed := 0.0
 
     func _process(delta: float) -> void:
+    attack_cooldown = maxf(0.0, attack_cooldown - delta)
         # El contorno se calcula una sola vez y el marcador se refresca a 10 Hz.
         redraw_elapsed += delta
         if redraw_elapsed >= 0.1:
@@ -96,6 +97,7 @@ var inventory_panel: PanelContainer
 var inventory_summary: Label
 var hotbar_slots: Array[Button] = []
 var selected_hotbar_index := 0
+var attack_cooldown := 0.0
 
 func _ready() -> void:
     rng.seed = 48123
@@ -1373,19 +1375,28 @@ func _add_foliage_multimesh(model_path: String, per_chunk: int, min_scale: float
                 add_child(instance)
     sample.free()
 
+func show_message(text_value: String) -> void:
+    if is_instance_valid(message):
+        message.text = text_value
+
 func _try_attack() -> void:
     if not is_instance_valid(player):
         return
+    if attack_cooldown > 0.0:
+        show_message("Espera %.1f s para golpear." % attack_cooldown)
+        return
+    attack_cooldown = 0.48
     var from := player.camera.global_position
-    var to := from + -player.camera.global_transform.basis.z * 2.8
+    var to := from + -player.camera.global_transform.basis.z * 3.2
     var query := PhysicsRayQueryParameters3D.create(from, to)
     query.exclude = [player.get_rid()]
     var hit := get_world_3d().direct_space_state.intersect_ray(query)
     if hit and hit.collider.is_in_group("wild_animals") and hit.collider.has_method("take_damage"):
-        hit.collider.take_damage(20.0)
-        message.text = "Golpeaste al animal."
+        hit.collider.take_damage(25.0)
+        if is_instance_valid(hit.collider):
+            show_message("Impacto: fauna herida.")
     else:
-        message.text = "No hay ningún animal al alcance."
+        show_message("No hay ningún animal al alcance.")
 
 func _try_harvest() -> void:
     if not is_instance_valid(player):
