@@ -1794,14 +1794,7 @@ func _try_harvest() -> void:
         if node.resource_type == "Piedra" and selected_hotbar_index == 1:
             message.text = "El hacha no sirve para extraer roca. Equipa el pico."
             return
-        var result := node.harvest(player)
-        if node.resource_type == "Madera" and selected_hotbar_index == 1:
-            player.inventory["Madera"] = int(player.inventory.get("Madera", 0)) + 1
-            result += " · bonus hacha"
-        elif node.resource_type == "Piedra" and selected_hotbar_index == 2:
-            player.inventory["Piedra"] = int(player.inventory.get("Piedra", 0)) + 1
-            result += " · bonus pico"
-        message.text = result
+        message.text = node.harvest(player)
     else:
         message.text = "Acércate a un árbol, roca o arbusto y apunta."
 
