@@ -429,17 +429,54 @@ func _make_terrain_chunk(chunk_x: int, chunk_z: int, material: ShaderMaterial) -
 
 func _make_water() -> void:
     var water := MeshInstance3D.new()
+    water.name = "AnimatedOcean"
     var water_mesh := PlaneMesh.new()
     water_mesh.size = Vector2(WORLD_SIZE + 80.0, WORLD_SIZE + 80.0)
+    # Subdivisiones suficientes para que las olas tengan desplazamiento geométrico real.
+    water_mesh.subdivide_width = 72
+    water_mesh.subdivide_depth = 72
     water.mesh = water_mesh
     water.position.y = WATER_LEVEL
-    var water_material := StandardMaterial3D.new()
-    water_material.albedo_color = Color(0.045, 0.24, 0.36, 0.94)
-    water_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-    water_material.roughness = 0.22
-    water_material.metallic = 0.08
-    water_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+    var water_shader := Shader.new()
+    water_shader.code = """
+shader_type spatial;
+render_mode blend_mix, depth_draw_opaque, cull_disabled, diffuse_burley, specular_schlick_ggx;
+uniform vec4 deep_color : source_color = vec4(0.018, 0.105, 0.17, 0.96);
+uniform vec4 shallow_color : source_color = vec4(0.10, 0.36, 0.40, 0.94);
+uniform float wave_scale = 0.035;
+varying vec3 world_pos;
+
+void vertex() {
+    vec3 p = VERTEX;
+    float t = TIME;
+    float wave_a = sin(p.x * 0.052 + t * 0.82) * 0.105;
+    float wave_b = cos(p.y * 0.061 - t * 0.63) * 0.075;
+    float wave_c = sin((p.x + p.y) * 0.024 + t * 0.38) * 0.12;
+    p.y += wave_a + wave_b + wave_c;
+    VERTEX = p;
+    world_pos = (MODEL_MATRIX * vec4(p, 1.0)).xyz;
+}
+
+void fragment() {
+    vec2 uv_a = world_pos.xz * wave_scale + vec2(TIME * 0.012, -TIME * 0.008);
+    vec2 uv_b = world_pos.xz * (wave_scale * 1.73) + vec2(-TIME * 0.009, TIME * 0.006);
+    float ripple_a = sin(uv_a.x * 6.28318) * cos(uv_a.y * 6.28318);
+    float ripple_b = sin(uv_b.x * 6.28318 + 1.2) * cos(uv_b.y * 6.28318);
+    float ripples = ripple_a * 0.5 + ripple_b * 0.5;
+    float fresnel = pow(1.0 - clamp(dot(normalize(NORMAL), normalize(VIEW)), 0.0, 1.0), 2.2);
+    vec3 water_color = mix(deep_color.rgb, shallow_color.rgb, clamp(0.30 + ripples * 0.10 + fresnel * 0.32, 0.0, 1.0));
+    water_color += vec3(0.035, 0.075, 0.078) * smoothstep(0.58, 0.92, ripples);
+    ALBEDO = water_color;
+    ROUGHNESS = 0.19 + (1.0 - fresnel) * 0.12;
+    METALLIC = 0.06;
+    SPECULAR = 0.72;
+    ALPHA = 0.94;
+}
+"""
+    var water_material := ShaderMaterial.new()
+    water_material.shader = water_shader
     water.material_override = water_material
+    water.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
     add_child(water)
 
 func _make_player() -> void:
