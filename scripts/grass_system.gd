@@ -3,9 +3,9 @@ extends Node3D
 const WORLD_SIZE := 512.0
 const CHUNK_COUNT := 4
 const CHUNK_SIZE := WORLD_SIZE / float(CHUNK_COUNT)
-const CLUMPS_PER_CHUNK := 55000
-const GRASS_HEIGHT := 0.24
-const BLADE_COUNT := 5
+const CLUMPS_PER_CHUNK := 140000
+const GRASS_HEIGHT := 0.19
+const BLADE_COUNT := 7
 const CARPET_RESOLUTION := 64
 
 var world_ref: Node3D
@@ -34,7 +34,7 @@ func _make_blade_cluster() -> ArrayMesh:
         var base := vertices.size()
         for segment in range(5):
             var t := float(segment) / 4.0
-            var half_width := maxf(0.0008, 0.031 * pow(1.0 - t, 1.28))
+            var half_width := maxf(0.0008, 0.034 * pow(1.0 - t, 1.32))
             var center := direction * (t * t * 0.045) + Vector3.UP * (t * GRASS_HEIGHT)
             vertices.append(center - side * half_width)
             vertices.append(center + side * half_width)
@@ -65,7 +65,7 @@ uniform float wind_strength = 0.035;
 uniform float wind_speed = 1.05;
 void vertex() {
     float phase = INSTANCE_CUSTOM.r * 6.28318;
-    float h = clamp(VERTEX.y / 0.24, 0.0, 1.0);
+    float h = clamp(VERTEX.y / 0.19, 0.0, 1.0);
     float breeze = sin(TIME * wind_speed + phase + VERTEX.x * 3.0 + VERTEX.z * 3.0);
     VERTEX.x += breeze * wind_strength * h * h;
     VERTEX.z += cos(TIME * 0.7 + phase) * wind_strength * 0.35 * h;
@@ -101,7 +101,7 @@ func _make_carpet(chunk_x: int, chunk_z: int, material: Material) -> void:
             var wx := center_x + lx
             var wz := center_z + lz
             var gy: float = world_ref.call("_height_at", wx, wz)
-            vertices.append(Vector3(lx, gy + 0.035, lz))
+            vertices.append(Vector3(lx, gy + 0.0015, lz))
             var normal: Vector3 = world_ref.call("_terrain_normal_at", wx, wz)
             normals.append(normal)
             if x < CARPET_RESOLUTION and z < CARPET_RESOLUTION:
@@ -127,8 +127,8 @@ func _make_carpet(chunk_x: int, chunk_z: int, material: Material) -> void:
 
 func _make_flowers(chunk_x: int, chunk_z: int, center_x: float, center_z: float) -> void:
     var flower_mesh := SphereMesh.new()
-    flower_mesh.radius = 0.035
-    flower_mesh.height = 0.07
+    flower_mesh.radius = 0.018
+    flower_mesh.height = 0.036
     flower_mesh.radial_segments = 5
     flower_mesh.rings = 3
     var flower_material := StandardMaterial3D.new()
@@ -149,7 +149,7 @@ func _make_flowers(chunk_x: int, chunk_z: int, center_x: float, center_z: float)
             continue
         var scale := rng.randf_range(0.65, 1.15)
         var basis := Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3(scale, scale, scale))
-        flowers.set_instance_transform(i, Transform3D(basis, Vector3(wx - center_x, gy + 0.30, wz - center_z)))
+        flowers.set_instance_transform(i, Transform3D(basis, Vector3(wx - center_x, gy + 0.055, wz - center_z)))
         flowers.set_instance_color(i, Color(1.0, 0.88, 0.28) if rng.randf() > 0.5 else Color(0.96, 0.96, 0.88))
     var flower_node := MultiMeshInstance3D.new()
     flower_node.name = "Wildflowers_%d_%d" % [chunk_x, chunk_z]
@@ -188,7 +188,7 @@ func _make_chunk(chunk_x: int, chunk_z: int, blade_mesh: Mesh, blade_material: M
         var sx := rng.randf_range(0.82, 1.18)
         var sy := rng.randf_range(0.72, 1.12)
         var basis := Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3(sx, sy, sx))
-        multi.set_instance_transform(i, Transform3D(basis, Vector3(lx, gy + 0.009, lz)))
+        multi.set_instance_transform(i, Transform3D(basis, Vector3(lx, gy + 0.003, lz)))
         var shade := rng.randf_range(0.82, 1.12)
         multi.set_instance_color(i, Color(shade, shade * rng.randf_range(0.96, 1.04), shade * 0.88, 1.0))
         multi.set_instance_custom_data(i, Color(rng.randf(), 0, 0, 1))
