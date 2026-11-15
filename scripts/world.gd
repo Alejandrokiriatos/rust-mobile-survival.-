@@ -48,8 +48,8 @@ class MinimapRadar extends Control:
         var image := Image.create(resolution, resolution, false, Image.FORMAT_RGBA8)
         for py in range(resolution):
             for px in range(resolution):
-                var wx := (float(px) / float(resolution - 1) - 0.5) * 512.0
-                var wz := (float(py) / float(resolution - 1) - 0.5) * 512.0
+                var wx := (float(px) / float(resolution - 1) - 0.5) * world_ref.WORLD_SIZE
+                var wz := (float(py) / float(resolution - 1) - 0.5) * world_ref.WORLD_SIZE
                 var height: float = world_ref._height_at(wx, wz)
                 var color: Color
                 if height <= -2.5:
@@ -63,6 +63,10 @@ class MinimapRadar extends Control:
                 else:
                     var biome: float = world_ref.biome_noise.get_noise_2d(wx, wz)
                     color = Color(0.24, 0.39, 0.20).lerp(Color(0.38, 0.46, 0.25), clampf(biome * 0.8 + 0.5, 0.0, 1.0))
+                    var desert := smoothstep(-0.20, 0.48, -wx / (world_ref.WORLD_SIZE * 0.5) + biome * 0.42)
+                    var snow := smoothstep(-0.12, 0.52, wz / (world_ref.WORLD_SIZE * 0.5) + biome * 0.38) * (1.0 - desert)
+                    color = color.lerp(Color(0.72, 0.57, 0.34), desert * 0.92)
+                    color = color.lerp(Color(0.82, 0.88, 0.93), snow * 0.94)
                     if height > 19.0:
                         color = color.lerp(Color(0.40, 0.42, 0.38), clampf((height - 19.0) / 13.0, 0.0, 0.55))
                 var normal: Vector3 = world_ref._terrain_normal_at(wx, wz)
@@ -80,10 +84,10 @@ class MinimapRadar extends Control:
         if terrain_map != null and player_node != null and is_instance_valid(player_node):
             # Ventana local: 96 m de terreno alrededor del jugador, no el mundo entero.
             # El mapa sigue orientado al norte y el jugador permanece centrado.
-            const VIEW_DIAMETER := 112.0
+            const VIEW_DIAMETER := 150.0
             var pos: Vector3 = player_node.global_position
-            var map_center := Vector2((pos.x / 512.0 + 0.5) * 192.0, (pos.z / 512.0 + 0.5) * 192.0)
-            var source_size := Vector2.ONE * (VIEW_DIAMETER / 512.0 * 192.0)
+            var map_center := Vector2((pos.x / world_ref.WORLD_SIZE + 0.5) * 192.0, (pos.z / world_ref.WORLD_SIZE + 0.5) * 192.0)
+            var source_size := Vector2.ONE * (VIEW_DIAMETER / world_ref.WORLD_SIZE * 192.0)
             var source := Rect2(map_center - source_size * 0.5, source_size)
             source.position.x = clampf(source.position.x, 0.0, 192.0 - source_size.x)
             source.position.y = clampf(source.position.y, 0.0, 192.0 - source_size.y)
@@ -109,7 +113,7 @@ const ANIMAL_SCRIPT = preload("res://scripts/wild_animal.gd")
 const BUILDABLE_SCRIPT = preload("res://scripts/survival_buildable.gd")
 const TOOL_MODELS = preload("res://scripts/tool_models.gd")
 const GRASS_SYSTEM = preload("res://scripts/grass_system.gd")
-const WORLD_SIZE := 512.0
+const WORLD_SIZE := 768.0
 const CHUNK_COUNT := 4
 const CHUNK_SIZE := WORLD_SIZE / CHUNK_COUNT
 const CHUNK_SEGMENTS := 96
@@ -130,6 +134,7 @@ var detail_noise := FastNoiseLite.new()
 var ridge_noise := FastNoiseLite.new()
 var coast_noise := FastNoiseLite.new()
 var biome_noise := FastNoiseLite.new()
+var forest_noise := FastNoiseLite.new()
 var asset_scenes: Dictionary = {}
 var rng := RandomNumberGenerator.new()
 var sun_light: DirectionalLight3D
@@ -243,6 +248,11 @@ func _configure_noise() -> void:
     biome_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX
     biome_noise.frequency = 0.0032
     biome_noise.fractal_octaves = 3
+    forest_noise.seed = 88421
+    forest_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX
+    forest_noise.frequency = 0.014
+    forest_noise.fractal_octaves = 3
+    forest_noise.fractal_gain = 0.55
 
 func _load_nature_pack() -> void:
     # Quaternius aporta árboles, rocas y vegetación con texturas; Kenney queda como respaldo ligero.
@@ -330,7 +340,12 @@ func _height_at(x: float, z: float) -> float:
     var base_height := -4.0 + land_shape * elevation
     # Zona de aparición suavizada, no una plataforma plana recortada.
     var spawn_blend := smoothstep(0.0, 34.0, radial_distance)
-    return lerpf(6.0, base_height, spawn_blend)
+    var climate := biome_noise.get_noise_2d(x, z)
+    var desert_mask := smoothstep(-0.20, 0.48, -x / (WORLD_SIZE * 0.5) + climate * 0.42)
+    var snow_mask := smoothstep(-0.12, 0.52, z / (WORLD_SIZE * 0.5) + climate * 0.38) * (1.0 - desert_mask)
+    var biome_height := lerpf(base_height, base_height - 1.2, desert_mask)
+    biome_height = lerpf(biome_height, biome_height + 2.0, snow_mask)
+    return lerpf(6.0, biome_height, spawn_blend)
 
 func _terrain_normal_at(x: float, z: float) -> Vector3:
     var sample_step := 1.25
@@ -408,6 +423,8 @@ void fragment() {
     sand = mix(vec3(0.48, 0.40, 0.27), sand, 0.28);
     rock = mix(vec3(0.27, 0.28, 0.27), rock, 0.34);
     float biome_mix = smoothstep(0.34, 0.72, COLOR.r) * 0.50;
+    float desert = smoothstep(0.48, 0.82, -p.x / 384.0 + (COLOR.r - 0.5) * 0.65);
+    float snow = smoothstep(0.42, 0.80, p.z / 384.0 + (COLOR.r - 0.5) * 0.55) * (1.0 - desert);
     float beach_mix = 1.0 - smoothstep(-1.2, 4.2, height);
     float highland_mix = smoothstep(21.0, 35.0, height) * 0.42;
     float rock_mix = max(smoothstep(0.20, 0.62, slope), highland_mix);
@@ -415,6 +432,8 @@ void fragment() {
     vec3 ground = mix(grass, dirt, biome_mix);
     ground = mix(ground, sand, beach_mix);
     ground = mix(ground, rock, rock_mix);
+    ground = mix(ground, vec3(0.68, 0.54, 0.31), desert * (1.0 - beach_mix) * (1.0 - rock_mix * 0.35));
+    ground = mix(ground, vec3(0.78, 0.84, 0.88), snow * (1.0 - beach_mix * 0.65));
     ground *= 0.88 + macro_noise;
     ALBEDO = ground;
     ROUGHNESS = 0.97;
@@ -1571,7 +1590,7 @@ func _scatter_resources() -> void:
             if kind == "Madera":
                 # La franja de arena queda despejada para que el jugador
                 # pueda orientarse al aparecer; los árboles empiezan tierra adentro.
-                if biome < -0.22 or y < 6.0 or y > 31.0 or slope > 0.38:
+                if biome < -0.22 or y < 6.0 or y > 31.0 or slope > 0.38 or forest_noise.get_noise_2d(x, z) < 0.12:
                     continue
                 if rng.randf() > clampf(0.82 + biome * 0.16, 0.58, 0.96):
                     continue
