@@ -27,15 +27,15 @@ func _make_leaf_mesh() -> ArrayMesh:
     var indices := PackedInt32Array()
     var directions := [0.0, PI / 3.0, 2.0 * PI / 3.0]
     for direction in directions:
-        var side := Vector3(cos(direction), 0.0, sin(direction)) * 0.065
-        var tip := Vector3(0.0, 0.72, 0.0) + Vector3(cos(direction + 0.22), 0.0, sin(direction + 0.22)) * 0.035
+        var side := Vector3(cos(direction), 0.0, sin(direction)) * 0.095
+        var tip := Vector3(0.0, 1.0, 0.0) + Vector3(cos(direction + 0.22), 0.0, sin(direction + 0.22)) * 0.035
         var base := vertices.size()
         vertices.append(-side)
         vertices.append(side)
         vertices.append(tip)
-        colors.append(Color(0.10, 0.28, 0.035))
-        colors.append(Color(0.17, 0.40, 0.055))
-        colors.append(Color(0.52, 0.70, 0.19))
+        colors.append(Color(0.12, 0.34, 0.025))
+        colors.append(Color(0.22, 0.52, 0.035))
+        colors.append(Color(0.68, 0.82, 0.22))
         indices.append_array(PackedInt32Array([base, base + 2, base + 1]))
     var arrays := []
     arrays.resize(Mesh.ARRAY_MAX)
@@ -55,7 +55,7 @@ uniform float wind_strength = 0.045;
 uniform float wind_speed = 1.15;
 void vertex() {
     float phase = INSTANCE_CUSTOM.r * 6.2831853;
-    float h = clamp(VERTEX.y / 0.52, 0.0, 1.0);
+    float h = clamp(VERTEX.y / 1.0, 0.0, 1.0);
     float breeze = sin(TIME * wind_speed + phase + INSTANCE_CUSTOM.g * 5.0);
     VERTEX.x += breeze * wind_strength * h * h;
     VERTEX.z += cos(TIME * wind_speed * 0.73 + phase) * wind_strength * 0.45 * h * h;
@@ -138,13 +138,13 @@ func _make_instanced_grass(center: Vector3) -> void:
             multi.set_instance_custom_data(i, Color.ZERO)
             continue
 
-        var height_scale := rng.randf_range(0.85, 1.45)
-        var width_scale := rng.randf_range(0.9, 1.35)
+        var height_scale := rng.randf_range(1.05, 1.65)
+        var width_scale := rng.randf_range(1.0, 1.5)
         var yaw := rng.randf_range(0.0, TAU)
         var lean := rng.randf_range(-0.13, 0.13)
         var basis := Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, lean)
         basis = basis.scaled(Vector3(width_scale, height_scale, width_scale))
-        multi.set_instance_transform(i, Transform3D(basis, Vector3(wx - center.x, gy + 0.025, wz - center.z)))
+        multi.set_instance_transform(i, Transform3D(basis, Vector3(wx - center.x, gy + 0.22, wz - center.z)))
 
         # Verde natural aleatorio, de sombra profunda a puntas claras.
         var hue := rng.randf_range(0.23, 0.31)
