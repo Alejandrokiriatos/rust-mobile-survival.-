@@ -58,7 +58,7 @@ const BUILDABLE_SCRIPT = preload("res://scripts/survival_buildable.gd")
 const WORLD_SIZE := 512.0
 const CHUNK_COUNT := 4
 const CHUNK_SIZE := WORLD_SIZE / CHUNK_COUNT
-const CHUNK_SEGMENTS := 96
+const CHUNK_SEGMENTS := 112
 const WATER_LEVEL := -2.5
 const RESOURCE_COUNTS := {"Madera": 150, "Piedra": 80, "Fibra": 130}
 const NATURE_PATH := "res://assets/kenney/nature-kit/"
@@ -161,12 +161,12 @@ func _configure_noise() -> void:
     terrain_noise.fractal_lacunarity = 2.05
     detail_noise.seed = 91827
     detail_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX
-    detail_noise.frequency = 0.032
+    detail_noise.frequency = 0.021
     detail_noise.fractal_octaves = 3
     detail_noise.fractal_gain = 0.48
     ridge_noise.seed = 27641
     ridge_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX
-    ridge_noise.frequency = 0.008
+    ridge_noise.frequency = 0.0058
     ridge_noise.fractal_type = FastNoiseLite.FRACTAL_RIDGED
     ridge_noise.fractal_octaves = 4
     ridge_noise.fractal_gain = 0.52
@@ -249,10 +249,15 @@ func _height_at(x: float, z: float) -> float:
     var coast_warp := coast_noise.get_noise_2d(x, z) * 0.105
     var edge := radial_distance / (WORLD_SIZE * 0.485) + coast_warp
     var land_shape := pow(clampf(1.0 - edge, 0.0, 1.0), 0.72)
-    var broad := terrain_noise.get_noise_2d(x, z) * 12.0
-    var detail := detail_noise.get_noise_2d(x, z) * 2.0
-    var ridge_value := maxf(0.0, ridge_noise.get_noise_2d(x, z))
-    var ridges := pow(ridge_value, 1.55) * 22.0
+    # Domain warping rompe las crestas paralelas y evita patrones repetitivos en las laderas.
+    var warp_x := terrain_noise.get_noise_2d(x + 173.0, z - 91.0) * 17.0
+    var warp_z := terrain_noise.get_noise_2d(x - 67.0, z + 211.0) * 17.0
+    var warped_x := x + warp_x
+    var warped_z := z + warp_z
+    var broad := terrain_noise.get_noise_2d(warped_x, warped_z) * 10.5
+    var detail := detail_noise.get_noise_2d(warped_x, warped_z) * 1.45
+    var ridge_value := maxf(0.0, ridge_noise.get_noise_2d(warped_x, warped_z))
+    var ridges := pow(ridge_value, 1.85) * 13.5
     var elevation := 24.0 + broad + detail + ridges
     var base_height := -4.0 + land_shape * elevation
     # Zona de aparición suavizada, no una plataforma plana recortada.
@@ -318,10 +323,10 @@ void fragment() {
 
     // Proyección triplanar en espacio mundo: evita costuras entre chunks y
     // reduce las bandas y estiramientos visibles en pendientes.
-    vec3 grass = triplanar(grass_tex, p, n, 0.022);
-    vec3 dirt = triplanar(dirt_tex, p, n, 0.020);
-    vec3 sand = triplanar(sand_tex, p, n, 0.018);
-    vec3 rock = triplanar(rock_tex, p, n, 0.019);
+    vec3 grass = triplanar(grass_tex, p, n, 0.014);
+    vec3 dirt = triplanar(dirt_tex, p, n, 0.013);
+    vec3 sand = triplanar(sand_tex, p, n, 0.012);
+    vec3 rock = triplanar(rock_tex, p, n, 0.013);
 
     // Variación cromática de escala grande para romper la repetición de las
     // muestras sin añadir texturas ni coste de geometría.
