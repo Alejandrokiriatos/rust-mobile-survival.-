@@ -104,13 +104,15 @@ static func create_tool(kind: String) -> Node3D:
             flame.height = 0.42
             flame.radial_segments = 8
             flame.rings = 5
-            _mesh(root, flame, _material(Color(1.0, 0.42, 0.07), 0.35, 0.0, Color(1.0, 0.22, 0.025)), Vector3(0, 1.43, 0), Vector3(0, 0, 0.12), Vector3(0.72, 1.45, 0.72))
+            var flame_mesh := _mesh(root, flame, _material(Color(1.0, 0.42, 0.07), 0.35, 0.0, Color(1.0, 0.22, 0.025)), Vector3(0, 1.43, 0), Vector3(0, 0, 0.12), Vector3(0.72, 1.45, 0.72))
+            flame_mesh.name = "TorchFlame"
             var inner := SphereMesh.new()
             inner.radius = 0.075
             inner.height = 0.22
             inner.radial_segments = 7
             inner.rings = 4
-            _mesh(root, inner, _material(Color(1.0, 0.83, 0.32), 0.25, 0.0, Color(1.0, 0.62, 0.12)), Vector3(0, 1.40, -0.025))
+            var inner_mesh := _mesh(root, inner, _material(Color(1.0, 0.83, 0.32), 0.25, 0.0, Color(1.0, 0.62, 0.12)), Vector3(0, 1.40, -0.025))
+            inner_mesh.name = "TorchInnerFlame"
             var light := OmniLight3D.new()
             light.name = "TorchLight"
             light.position = Vector3(0, 1.47, 0.02)
@@ -119,6 +121,7 @@ static func create_tool(kind: String) -> Node3D:
             light.omni_range = 8.0
             light.shadow_enabled = false
             root.add_child(light)
+            root.set_script(load("res://scripts/torch_flicker.gd"))
         _:
             return root
     return root
