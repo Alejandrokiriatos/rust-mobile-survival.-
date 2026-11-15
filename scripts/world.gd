@@ -653,48 +653,57 @@ func _make_hud() -> void:
     mobile_joystick.position = Vector2(20, -150)
     control_layer.add_child(mobile_joystick)
     player.joystick = mobile_joystick
-    var sprint_button := _create_action_button("", Vector2(20, -232), Vector2(58, 58))
+    # Controles móviles nuevos: una sola instancia por acción, sin botones heredados duplicados.
+    var sprint_button := _create_action_button("", Vector2(20, -226), Vector2(58, 58))
     sprint_button.anchor_left = 0.0
     sprint_button.anchor_right = 0.0
-    sprint_button.position = Vector2(20, -232)
+    sprint_button.position = Vector2(20, -226)
     _set_action_icon(sprint_button, "sprint")
     sprint_button.button_down.connect(player.set_sprinting.bind(true))
     sprint_button.button_up.connect(player.set_sprinting.bind(false))
     control_layer.add_child(sprint_button)
-    var crouch_button := _create_action_button("", Vector2(88, -88), Vector2(58, 58))
+
+    var crouch_button := _create_action_button("", Vector2(88, -226), Vector2(58, 58))
     crouch_button.anchor_left = 0.0
     crouch_button.anchor_right = 0.0
-    crouch_button.position = Vector2(88, -88)
+    crouch_button.position = Vector2(88, -226)
     _set_action_icon(crouch_button, "crouch")
     crouch_button.button_down.connect(player.set_crouching.bind(true))
     crouch_button.button_up.connect(player.set_crouching.bind(false))
     control_layer.add_child(crouch_button)
-    var attack_button := _create_action_button("", Vector2(-120, -120), Vector2(100, 100))
+
+    var attack_button := _create_action_button("", Vector2(-120, -22), Vector2(100, 100))
     _style_action_button(attack_button, true, Color(0.83, 0.12, 0.12, 0.88))
     _set_action_icon(attack_button, "attack")
     attack_button.pressed.connect(_try_attack)
     control_layer.add_child(attack_button)
-    var jump_button := _create_action_button("", Vector2(-178, -196), Vector2(68, 68))
+
+    var jump_button := _create_action_button("", Vector2(-178, -112), Vector2(68, 68))
     _style_action_button(jump_button, true, Color(0.96, 0.62, 0.08, 0.88))
     _set_action_icon(jump_button, "jump")
     jump_button.button_down.connect(player.mobile_action.bind("jump", true))
     jump_button.button_up.connect(player.mobile_action.bind("jump", false))
     control_layer.add_child(jump_button)
-    var reload_button := _create_action_button("", Vector2(-188, -88), Vector2(60, 60))
+
+    var reload_button := _create_action_button("", Vector2(-188, -34), Vector2(60, 60))
     _style_action_button(reload_button, true, Color(0.30, 0.42, 0.48, 0.86))
     _set_action_icon(reload_button, "reload")
-    reload_button.tooltip_text = "Acción secundaria"
+    reload_button.tooltip_text = "Acción secundaria (pendiente de implementar)"
     control_layer.add_child(reload_button)
-    interact_button = _create_action_button("", Vector2(-90, -257), Vector2(62, 62))
+
+    interact_button = _create_action_button("", Vector2(-90, -142), Vector2(62, 62))
     _style_action_button(interact_button, true, Color(0.18, 0.56, 0.24, 0.88))
     _set_action_icon(interact_button, "use")
     interact_button.pressed.connect(_try_harvest)
     control_layer.add_child(interact_button)
+
+    # Mochila y fabricación conservan sus accesos, pero usan el mismo estilo/iconografía nueva.
     var bag := _create_action_button("", Vector2(-154, 142), Vector2(68, 62), true)
     _set_action_icon(bag, "backpack")
     _add_button_caption(bag, "MOCHILA")
     bag.pressed.connect(_toggle_inventory_panel)
     control_layer.add_child(bag)
+
     var craft := _create_action_button("", Vector2(-78, 142), Vector2(68, 62), true)
     _set_action_icon(craft, "craft")
     _add_button_caption(craft, "FABRICAR")
@@ -968,13 +977,6 @@ func _style_hotbar_slot(button: Button, selected: bool) -> void:
     button.add_theme_color_override("font_color", Color(0.94, 0.95, 0.89))
     button.add_theme_color_override("font_pressed_color", Color(1.0, 0.88, 0.48))
 
-func _add_crouch_button() -> void:
-    var button := _create_action_button("AGACHAR", Vector2(-180, -110), Vector2(66, 66))
-    _set_action_icon(button, "crouch")
-    button.button_down.connect(player.set_crouching.bind(true))
-    button.button_up.connect(player.set_crouching.bind(false))
-    control_layer.add_child(button)
-
 func _make_inventory_panel() -> void:
     # Inventario amplio con celdas independientes: cada recurso ocupa su propio contenedor.
     inventory_panel = PanelContainer.new()
@@ -1071,32 +1073,6 @@ func _make_inventory_panel() -> void:
 
 func _toggle_inventory_panel() -> void:
     inventory_panel.visible = not inventory_panel.visible
-func _add_hold_button(label_text: String, offset: Vector2, action: String, wide: bool = false) -> void:
-    var button := Button.new()
-    button.text = label_text
-    button.size = Vector2(138, 48) if wide else Vector2(58, 54)
-    button.anchor_left = 1.0 if offset.x < 0.0 else 0.0
-    button.anchor_right = button.anchor_left
-    button.anchor_top = 1.0
-    button.anchor_bottom = 1.0
-    button.position = offset
-    button.add_theme_font_size_override("font_size", 16 if wide else 24)
-    _style_action_button(button)
-    button.button_down.connect(player.mobile_action.bind(action, true))
-    button.button_up.connect(player.mobile_action.bind(action, false))
-    control_layer.add_child(button)
-
-func _add_sprint_button() -> void:
-    # Sprint queda encima y a la derecha del joystick, en la zona del pulgar izquierdo.
-    var button := _create_action_button("", Vector2(142, -260), Vector2(58, 58))
-    button.anchor_left = 0.0
-    button.anchor_right = 0.0
-    button.position = Vector2(142, -260)
-    _set_action_icon(button, "sprint")
-    button.button_down.connect(player.set_sprinting.bind(true))
-    button.button_up.connect(player.set_sprinting.bind(false))
-    control_layer.add_child(button)
-
 func _make_craft_panel() -> void:
     # Fabricación ocupa el 80% de la pantalla y se adapta a móviles/tablets.
     craft_panel = PanelContainer.new()
@@ -1442,6 +1418,26 @@ func _set_action_icon(button: Button, icon_name: String) -> void:
     if ResourceLoader.exists(icon_path):
         button.icon = load(icon_path) as Texture2D
         button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+        return
+    # Respaldo cuando el paquete no contiene un SVG: emoji centrado y escalado.
+    var emoji_by_action := {
+        "reload": "🔄",
+        "sprint": "🏃",
+        "crouch": "🧎",
+        "jump": "⬆️",
+        "attack": "👊",
+        "use": "✋",
+        "backpack": "🎒",
+        "craft": "🔨"
+    }
+    var emoji := Label.new()
+    emoji.text = str(emoji_by_action.get(icon_name, "●"))
+    emoji.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+    emoji.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    emoji.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+    emoji.add_theme_font_size_override("font_size", int(clampf(minf(button.size.x, button.size.y) * 0.52, 22.0, 46.0)))
+    emoji.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    button.add_child(emoji)
 
 func _style_action_button(button: Button, round_button: bool = false, tint: Color = Color(0.025, 0.038, 0.046, 0.24)) -> void:
     var normal := StyleBoxFlat.new()
