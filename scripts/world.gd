@@ -1191,18 +1191,18 @@ func _drink() -> void:
 func _spawn_wildlife() -> void:
     # Repartimos especies para que el bosque tenga fauna variada.
     var species_data: Array[Dictionary] = [
-        {"species": "Deer", "file": "Deer.gltf", "predator": false, "speed": 2.6, "scale": 1.0},
-        {"species": "Stag", "file": "Stag.gltf", "predator": false, "speed": 2.8, "scale": 1.05},
-        {"species": "Fox", "file": "Fox.gltf", "predator": false, "speed": 3.1, "scale": 0.85},
-        {"species": "Wolf", "file": "Wolf.gltf", "predator": true, "speed": 3.0, "scale": 0.95},
-        {"species": "Husky", "file": "Husky.gltf", "predator": false, "speed": 2.8, "scale": 0.9},
-        {"species": "ShibaInu", "file": "ShibaInu.gltf", "predator": false, "speed": 2.6, "scale": 0.8},
-        {"species": "Cow", "file": "Cow.gltf", "predator": false, "speed": 1.8, "scale": 1.0},
-        {"species": "Bull", "file": "Bull.gltf", "predator": false, "speed": 2.0, "scale": 1.05},
-        {"species": "Horse", "file": "Horse.gltf", "predator": false, "speed": 3.2, "scale": 1.0},
-        {"species": "Horse_White", "file": "Horse_White.gltf", "predator": false, "speed": 3.2, "scale": 1.0},
-        {"species": "Alpaca", "file": "Alpaca.gltf", "predator": false, "speed": 2.0, "scale": 0.9},
-        {"species": "Donkey", "file": "Donkey.gltf", "predator": false, "speed": 2.0, "scale": 0.9}
+        {"species": "Deer", "file": "Deer.gltf", "predator": false, "speed": 2.6, "scale": 0.78},
+        {"species": "Stag", "file": "Stag.gltf", "predator": false, "speed": 2.8, "scale": 0.82},
+        {"species": "Fox", "file": "Fox.gltf", "predator": false, "speed": 3.1, "scale": 0.68},
+        {"species": "Wolf", "file": "Wolf.gltf", "predator": true, "speed": 3.0, "scale": 0.76},
+        {"species": "Husky", "file": "Husky.gltf", "predator": false, "speed": 2.8, "scale": 0.68},
+        {"species": "ShibaInu", "file": "ShibaInu.gltf", "predator": false, "speed": 2.6, "scale": 0.62},
+        {"species": "Cow", "file": "Cow.gltf", "predator": false, "speed": 1.8, "scale": 0.62},
+        {"species": "Bull", "file": "Bull.gltf", "predator": false, "speed": 2.0, "scale": 0.66},
+        {"species": "Horse", "file": "Horse.gltf", "predator": false, "speed": 3.2, "scale": 0.76},
+        {"species": "Horse_White", "file": "Horse_White.gltf", "predator": false, "speed": 3.2, "scale": 0.76},
+        {"species": "Alpaca", "file": "Alpaca.gltf", "predator": false, "speed": 2.0, "scale": 0.70},
+        {"species": "Donkey", "file": "Donkey.gltf", "predator": false, "speed": 2.0, "scale": 0.70}
     ]
     for data in species_data:
         var placed := false
