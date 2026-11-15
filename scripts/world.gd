@@ -39,6 +39,14 @@ class MinimapRadar extends Control:
             coast.append(center + point)
         if coast.size() > 2:
             draw_polyline(coast, Color(0.78, 0.79, 0.58, 0.9), 1.6, true)
+        var cabinet = world_ref.get("territory_cabinet")
+        if cabinet != null and is_instance_valid(cabinet):
+            var cabinet_pos: Vector3 = cabinet.global_position
+            var cabinet_map := center + Vector2(cabinet_pos.x / 512.0 * size.x, cabinet_pos.z / 512.0 * size.y)
+            var territory_map_radius := 28.0 / 512.0 * size.x
+            draw_arc(cabinet_map, territory_map_radius, 0.0, TAU, 64, Color(0.35, 0.88, 0.52, 0.9), 1.5, true)
+            draw_circle(cabinet_map, 4.0, Color(0.25, 0.95, 0.48))
+            draw_arc(cabinet_map, 6.5, 0.0, TAU, 24, Color(0.08, 0.10, 0.07), 1.4, true)
         var player_node = world_ref.get("player")
         if player_node != null and is_instance_valid(player_node):
             var pos: Vector3 = player_node.global_position
