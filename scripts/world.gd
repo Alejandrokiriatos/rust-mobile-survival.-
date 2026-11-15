@@ -862,6 +862,8 @@ func _select_hotbar_slot(index: int) -> void:
     if index < 0 or index >= hotbar_slots.size():
         return
     selected_hotbar_index = index
+    var equipped_names := ["stone", "axe", "pickaxe", "", "", "torch"]
+    player.equipped_tool = equipped_names[index]
     for i in range(hotbar_slots.size()):
         _style_hotbar_slot(hotbar_slots[i], i == selected_hotbar_index)
     var selected_names := ["PIEDRA", "HACHA", "PICO", "MADERA", "FOGATA", "ANTORCHA"]
