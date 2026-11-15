@@ -3,9 +3,9 @@ extends Node3D
 const WORLD_SIZE := 512.0
 const CHUNK_COUNT := 4
 const CHUNK_SIZE := WORLD_SIZE / float(CHUNK_COUNT)
-const CLUMPS_PER_CHUNK := 140000
-const GRASS_HEIGHT := 0.19
-const BLADE_COUNT := 7
+const CLUMPS_PER_CHUNK := 240000
+const GRASS_HEIGHT := 0.155
+const BLADE_COUNT := 9
 const CARPET_RESOLUTION := 64
 
 var world_ref: Node3D
@@ -34,8 +34,8 @@ func _make_blade_cluster() -> ArrayMesh:
         var base := vertices.size()
         for segment in range(5):
             var t := float(segment) / 4.0
-            var half_width := maxf(0.0008, 0.034 * pow(1.0 - t, 1.32))
-            var center := direction * (t * t * 0.045) + Vector3.UP * (t * GRASS_HEIGHT)
+            var half_width := maxf(0.0008, 0.039 * pow(1.0 - t, 1.18))
+            var center := direction * (t * t * 0.065) + Vector3.UP * (t * GRASS_HEIGHT)
             vertices.append(center - side * half_width)
             vertices.append(center + side * half_width)
             var tint := Color(0.105, 0.205, 0.055).lerp(Color(0.43, 0.43, 0.105), t)
@@ -65,7 +65,7 @@ uniform float wind_strength = 0.035;
 uniform float wind_speed = 1.05;
 void vertex() {
     float phase = INSTANCE_CUSTOM.r * 6.28318;
-    float h = clamp(VERTEX.y / 0.19, 0.0, 1.0);
+    float h = clamp(VERTEX.y / 0.155, 0.0, 1.0);
     float breeze = sin(TIME * wind_speed + phase + VERTEX.x * 3.0 + VERTEX.z * 3.0);
     VERTEX.x += breeze * wind_strength * h * h;
     VERTEX.z += cos(TIME * 0.7 + phase) * wind_strength * 0.35 * h;
@@ -79,12 +79,42 @@ void fragment() {
     material.shader = shader
     return material
 
-func _make_carpet_material() -> StandardMaterial3D:
-    var material := StandardMaterial3D.new()
-    material.albedo_color = Color(0.115, 0.205, 0.055, 1.0)
-    material.roughness = 1.0
-    material.metallic = 0.0
-    material.cull_mode = BaseMaterial3D.CULL_DISABLED
+func _make_carpet_material() -> ShaderMaterial:
+    # Capa de microhierba procedural: rellena visualmente los huecos entre
+    # las hojas instanciadas sin multiplicar millones de polígonos adicionales.
+    var shader := Shader.new()
+    shader.code = """
+shader_type spatial;
+render_mode cull_disabled, diffuse_burley, specular_disabled;
+varying vec3 grass_world_pos;
+float hash21(vec2 p) {
+    p = fract(p * vec2(123.34, 456.21));
+    p += dot(p, p + 45.32);
+    return fract(p.x * p.y);
+}
+void vertex() {
+    grass_world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+}
+void fragment() {
+    vec2 p = grass_world_pos.xz * 34.0;
+    vec2 cell = floor(p);
+    vec2 f = fract(p);
+    float rnd = hash21(cell);
+    float lean = (rnd - 0.5) * 0.55;
+    float blade_line = abs(f.x - (0.5 + lean + (f.y - 0.5) * 0.18));
+    float blade = 1.0 - smoothstep(0.025, 0.105, blade_line);
+    float tip = smoothstep(0.05, 0.95, f.y);
+    float variation = hash21(floor(grass_world_pos.xz * 5.0)) * 0.12;
+    vec3 soil_green = vec3(0.035, 0.105, 0.018);
+    vec3 leaf_green = vec3(0.105, 0.225, 0.035);
+    vec3 color = mix(soil_green, leaf_green, blade * (0.65 + tip * 0.35));
+    color *= 0.88 + variation;
+    ALBEDO = color;
+    ROUGHNESS = 1.0;
+}
+"""
+    var material := ShaderMaterial.new()
+    material.shader = shader
     return material
 
 func _make_carpet(chunk_x: int, chunk_z: int, material: Material) -> void:
