@@ -78,7 +78,7 @@ const BUILDABLE_SCRIPT = preload("res://scripts/survival_buildable.gd")
 const WORLD_SIZE := 512.0
 const CHUNK_COUNT := 4
 const CHUNK_SIZE := WORLD_SIZE / CHUNK_COUNT
-const CHUNK_SEGMENTS := 112
+const CHUNK_SEGMENTS := 96
 const WATER_LEVEL := -2.5
 const RESOURCE_COUNTS := {"Madera": 150, "Piedra": 80, "Fibra": 130}
 const NATURE_PATH := "res://assets/kenney/nature-kit/"
@@ -265,7 +265,9 @@ func _make_environment() -> void:
     sun_light = DirectionalLight3D.new()
     sun_light.rotation_degrees = Vector3(-48, -32, 0)
     sun_light.light_energy = 0.92
+    # Sombras direccionales de alcance corto para contener el coste en Android.
     sun_light.shadow_enabled = true
+    sun_light.directional_shadow_max_distance = 52.0
     sun_light.shadow_bias = 0.12
     sun_light.shadow_normal_bias = 1.8
     sun_light.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
@@ -1533,6 +1535,11 @@ func _add_foliage_multimesh(model_path: String, per_chunk: int, min_scale: float
                 instance.multimesh = multi
                 instance.position = Vector3(center_x, 0.0, center_z)
                 instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+                # La hierba lejana se descarta por distancia; no proyecta sombras.
+                # Esto limita el coste de miles de instancias en móviles modestos.
+                instance.visibility_range_begin = 0.0
+                instance.visibility_range_end = 145.0
+                instance.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
                 instance.custom_aabb = AABB(Vector3(-CHUNK_SIZE * 0.5, -12.0, -CHUNK_SIZE * 0.5), Vector3(CHUNK_SIZE, 42.0, CHUNK_SIZE))
                 if source_mesh.material_override != null:
                     instance.material_override = source_mesh.material_override
