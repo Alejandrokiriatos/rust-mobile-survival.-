@@ -1453,8 +1453,8 @@ func _create_resource(pos: Vector3, kind: String) -> void:
 func _scatter_ground_cover() -> void:
     # Cubierta de suelo sin colisión: se puede caminar a través de ella.
     # La hierba corta común forma la capa base y la variedad wispy rompe el patrón.
-    _add_foliage_multimesh(NATURE_MEGA_PATH + "Grass_Common_Short.gltf", 112, 0.78, 1.18)
-    _add_foliage_multimesh(NATURE_MEGA_PATH + "Grass_Wispy_Short.gltf", 76, 0.66, 1.02)
+    _add_foliage_multimesh(NATURE_MEGA_PATH + "Grass_Common_Short.gltf", 260, 0.92, 1.32)
+    _add_foliage_multimesh(NATURE_MEGA_PATH + "Grass_Wispy_Short.gltf", 180, 0.78, 1.16)
     _add_foliage_multimesh(NATURE_MEGA_PATH + "Fern_1.gltf", 12, 0.62, 0.96)
     # Las flores quedan como acentos puntuales, no como una alfombra rosa.
     _add_foliage_multimesh(NATURE_MEGA_PATH + "Flower_3_Group.gltf", 3, 0.42, 0.68)
