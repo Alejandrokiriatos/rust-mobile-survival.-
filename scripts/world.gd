@@ -672,26 +672,28 @@ func _make_hud() -> void:
     crouch_button.button_up.connect(player.set_crouching.bind(false))
     control_layer.add_child(crouch_button)
 
-    var attack_button := _create_action_button("", Vector2(-120, -22), Vector2(100, 100))
+    # Grupo derecho compacto: todos los controles quedan dentro del viewport,
+    # incluso en pantallas móviles de poca altura.
+    var attack_button := _create_action_button("", Vector2(-104, -104), Vector2(88, 88))
     _style_action_button(attack_button, true, Color(0.83, 0.12, 0.12, 0.88))
     _set_action_icon(attack_button, "attack")
     attack_button.pressed.connect(_try_attack)
     control_layer.add_child(attack_button)
 
-    var jump_button := _create_action_button("", Vector2(-178, -112), Vector2(68, 68))
+    var jump_button := _create_action_button("", Vector2(-198, -104), Vector2(64, 64))
     _style_action_button(jump_button, true, Color(0.96, 0.62, 0.08, 0.88))
     _set_action_icon(jump_button, "jump")
     jump_button.button_down.connect(player.mobile_action.bind("jump", true))
     jump_button.button_up.connect(player.mobile_action.bind("jump", false))
     control_layer.add_child(jump_button)
 
-    var reload_button := _create_action_button("", Vector2(-188, -34), Vector2(60, 60))
+    var reload_button := _create_action_button("", Vector2(-190, -184), Vector2(54, 54))
     _style_action_button(reload_button, true, Color(0.30, 0.42, 0.48, 0.86))
     _set_action_icon(reload_button, "reload")
     reload_button.tooltip_text = "Acción secundaria (pendiente de implementar)"
     control_layer.add_child(reload_button)
 
-    interact_button = _create_action_button("", Vector2(-90, -142), Vector2(62, 62))
+    interact_button = _create_action_button("", Vector2(-112, -198), Vector2(58, 58))
     _style_action_button(interact_button, true, Color(0.18, 0.56, 0.24, 0.88))
     _set_action_icon(interact_button, "use")
     interact_button.pressed.connect(_try_harvest)
@@ -1414,12 +1416,7 @@ func _load_game() -> void:
         _place_buildable(kind, entry.get("position", Vector3.ZERO), str(entry.get("owner_id", LOCAL_OWNER_ID)))
 
 func _set_action_icon(button: Button, icon_name: String) -> void:
-    var icon_path := MOBILE_ICON_PATH + icon_name + ".svg"
-    if ResourceLoader.exists(icon_path):
-        button.icon = load(icon_path) as Texture2D
-        button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-        return
-    # Respaldo cuando el paquete no contiene un SVG: emoji centrado y escalado.
+    # Iconografía unificada con emojis: no mezcla pictogramas SVG de estilos distintos.
     var emoji_by_action := {
         "reload": "🔄",
         "sprint": "🏃",
@@ -1430,12 +1427,15 @@ func _set_action_icon(button: Button, icon_name: String) -> void:
         "backpack": "🎒",
         "craft": "🔨"
     }
+    button.icon = null
+    button.text = ""
     var emoji := Label.new()
-    emoji.text = str(emoji_by_action.get(icon_name, "●"))
+    emoji.text = str(emoji_by_action.get(icon_name, "✨"))
     emoji.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
     emoji.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
     emoji.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-    emoji.add_theme_font_size_override("font_size", int(clampf(minf(button.size.x, button.size.y) * 0.52, 22.0, 46.0)))
+    emoji.add_theme_font_size_override("font_size", int(clampf(minf(button.size.x, button.size.y) * 0.56, 24.0, 48.0)))
+    emoji.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 1.0))
     emoji.mouse_filter = Control.MOUSE_FILTER_IGNORE
     button.add_child(emoji)
 
