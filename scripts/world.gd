@@ -1453,8 +1453,8 @@ func _create_resource(pos: Vector3, kind: String) -> void:
 func _scatter_ground_cover() -> void:
     # Cubierta de suelo sin colisión: se puede caminar a través de ella.
     # La hierba corta común forma la capa base y la variedad wispy rompe el patrón.
-    _add_foliage_multimesh(NATURE_MEGA_PATH + "Grass_Common_Short.gltf", 3600, 0.28, 0.44)
-    _add_foliage_multimesh(NATURE_MEGA_PATH + "Grass_Wispy_Short.gltf", 2400, 0.22, 0.36)
+    _add_foliage_multimesh(NATURE_MEGA_PATH + "Grass_Common_Short.gltf", 5000, 0.32, 0.48)
+    _add_foliage_multimesh(NATURE_MEGA_PATH + "Grass_Wispy_Short.gltf", 3200, 0.25, 0.39)
     _add_foliage_multimesh(NATURE_MEGA_PATH + "Fern_1.gltf", 12, 0.62, 0.96)
     # Las flores quedan como acentos puntuales, no como una alfombra rosa.
     _add_foliage_multimesh(NATURE_MEGA_PATH + "Flower_3_Group.gltf", 3, 0.42, 0.68)
@@ -1512,7 +1512,7 @@ func _add_foliage_multimesh(model_path: String, per_chunk: int, min_scale: float
                     # su huella horizontal mejora la cobertura sin convertirlos en matas altas.
                     var foliage_scale := Vector3.ONE * scale_value
                     if model_path.contains("Grass_"):
-                        foliage_scale = Vector3(scale_value * 1.7, scale_value * 0.72, scale_value * 1.7)
+                        foliage_scale = Vector3(scale_value * 1.9, scale_value * 0.78, scale_value * 1.9)
                     var basis := Basis(Vector3.UP, yaw).scaled(foliage_scale)
                     var placement := Transform3D(basis, Vector3(local_x, ground_y, local_z))
                     # Conserva la posición y orientación internas de cada pieza del modelo GLTF.
