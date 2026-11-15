@@ -64,3 +64,13 @@ func _add_box(dimensions: Vector3, offset: Vector3, color: Color) -> void:
     material.roughness = 0.9
     visual.material_override = material
     add_child(visual)
+
+    # Las piezas construidas también tienen colisión: antes el refugio era
+    # únicamente visual y el jugador podía atravesar postes, techo y base.
+    var collision := CollisionShape3D.new()
+    collision.name = "BuildCollision"
+    var shape := BoxShape3D.new()
+    shape.size = dimensions
+    collision.shape = shape
+    collision.position = offset
+    add_child(collision)
