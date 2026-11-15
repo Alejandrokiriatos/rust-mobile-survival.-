@@ -593,27 +593,15 @@ func _make_hud() -> void:
     control_layer = CanvasLayer.new()
     control_layer.layer = 10
     add_child(control_layer)
-
-    # Panel de supervivencia: compacto, con contraste y valores fáciles de leer.
-    var status_panel := PanelContainer.new()
-    status_panel.position = Vector2(14, 12)
-    status_panel.custom_minimum_size = Vector2(244, 128)
-    _style_action_panel(status_panel)
-    control_layer.add_child(status_panel)
     var status_stack := VBoxContainer.new()
-    status_stack.add_theme_constant_override("separation", 5)
-    status_panel.add_child(status_stack)
-    var status_title := Label.new()
-    status_title.text = "SUPERVIVENCIA  /  v0.4.0"
-    status_title.add_theme_font_size_override("font_size", 12)
-    status_title.add_theme_color_override("font_color", Color(0.88, 0.94, 0.88))
-    status_stack.add_child(status_title)
+    status_stack.position = Vector2(12, 12)
+    status_stack.custom_minimum_size = Vector2(236, 0)
+    status_stack.add_theme_constant_override("separation", 4)
+    control_layer.add_child(status_stack)
     health_bar = _make_bar(status_stack, "VIDA", Color(0.91, 0.20, 0.18))
-    hunger_bar = _make_bar(status_stack, "HAMBRE", Color(0.94, 0.57, 0.16))
-    thirst_bar = _make_bar(status_stack, "SED", Color(0.18, 0.58, 0.94))
-    stamina_bar = _make_bar(status_stack, "ENERGÍA", Color(0.25, 0.76, 0.40))
-
-    # Brújula flotante sin placa de fondo: la escala se desliza suavemente.
+    hunger_bar = _make_bar(status_stack, "HAMBRE", Color(0.96, 0.57, 0.13))
+    thirst_bar = _make_bar(status_stack, "SED", Color(0.20, 0.58, 0.95))
+    stamina_bar = _make_bar(status_stack, "ENERGÍA", Color(0.25, 0.78, 0.40))
     compass_label = CompassRibbon.new()
     compass_label.anchor_left = 0.5
     compass_label.anchor_right = 0.5
@@ -621,19 +609,16 @@ func _make_hud() -> void:
     compass_label.custom_minimum_size = Vector2(420, 62)
     compass_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
     control_layer.add_child(compass_label)
-
     day_label = Label.new()
-    day_label.position = Vector2(18, 148)
-    day_label.add_theme_font_size_override("font_size", 12)
-    day_label.add_theme_color_override("font_color", Color(0.96, 0.91, 0.73))
+    day_label.position = Vector2(16, 112)
+    day_label.add_theme_font_size_override("font_size", 11)
+    day_label.add_theme_color_override("font_color", Color(0.98, 0.94, 0.82))
     control_layer.add_child(day_label)
     territory_label = Label.new()
-    territory_label.position = Vector2(18, 166)
-    territory_label.add_theme_font_size_override("font_size", 11)
-    territory_label.add_theme_color_override("font_color", Color(0.78, 0.91, 0.72))
+    territory_label.position = Vector2(16, 130)
+    territory_label.add_theme_font_size_override("font_size", 10)
+    territory_label.add_theme_color_override("font_color", Color(0.82, 0.94, 0.78))
     control_layer.add_child(territory_label)
-
-    # Minimapa con marco sobrio y coordenadas legibles.
     var map := PanelContainer.new()
     map.anchor_left = 1.0
     map.anchor_right = 1.0
@@ -645,9 +630,10 @@ func _make_hud() -> void:
     map_col.add_theme_constant_override("separation", 4)
     map.add_child(map_col)
     var map_title := Label.new()
-    map_title.text = "  MAPA  /  TERRENO  ·  N ↑"
+    map_title.text = "MAPA  ·  N ↑"
+    map_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
     map_title.add_theme_font_size_override("font_size", 10)
-    map_title.add_theme_color_override("font_color", Color(0.77, 0.86, 0.77))
+    map_title.add_theme_color_override("font_color", Color(0.94, 0.96, 0.89))
     map_col.add_child(map_title)
     var map_view := MinimapRadar.new()
     map_view.world_ref = self
@@ -657,163 +643,143 @@ func _make_hud() -> void:
     map_col.add_child(map_view)
     minimap_coords = Label.new()
     minimap_coords.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-    minimap_coords.add_theme_font_size_override("font_size", 10)
+    minimap_coords.add_theme_font_size_override("font_size", 9)
     map_col.add_child(minimap_coords)
-
-    # Joystick con base y mando de alto contraste.
     mobile_joystick = JOYSTICK_SCRIPT.new()
     mobile_joystick.anchor_left = 0.0
     mobile_joystick.anchor_right = 0.0
     mobile_joystick.anchor_top = 1.0
     mobile_joystick.anchor_bottom = 1.0
-    mobile_joystick.position = Vector2(24, -184)
+    mobile_joystick.position = Vector2(20, -150)
     control_layer.add_child(mobile_joystick)
     player.joystick = mobile_joystick
-
-    # HUD táctil estilo survival/FPS: joystick y sprint a la izquierda;
-    # ataque dominante y acciones secundarias agrupadas en la esquina derecha.
-    _add_sprint_button()
-
-    var crouch_button := _create_action_button("", Vector2(-184, -216), Vector2(72, 72))
+    var sprint_button := _create_action_button("", Vector2(20, -232), Vector2(58, 58))
+    sprint_button.anchor_left = 0.0
+    sprint_button.anchor_right = 0.0
+    sprint_button.position = Vector2(20, -232)
+    _set_action_icon(sprint_button, "sprint")
+    sprint_button.button_down.connect(player.set_sprinting.bind(true))
+    sprint_button.button_up.connect(player.set_sprinting.bind(false))
+    control_layer.add_child(sprint_button)
+    var crouch_button := _create_action_button("", Vector2(88, -88), Vector2(58, 58))
+    crouch_button.anchor_left = 0.0
+    crouch_button.anchor_right = 0.0
+    crouch_button.position = Vector2(88, -88)
     _set_action_icon(crouch_button, "crouch")
-    _add_button_caption(crouch_button, "AGACHAR")
-    crouch_button.tooltip_text = "Mantener para agacharse"
     crouch_button.button_down.connect(player.set_crouching.bind(true))
     crouch_button.button_up.connect(player.set_crouching.bind(false))
     control_layer.add_child(crouch_button)
-
-    var jump_button := _create_action_button("", Vector2(-98, -216), Vector2(76, 76))
+    var attack_button := _create_action_button("", Vector2(-120, -120), Vector2(100, 100))
+    _style_action_button(attack_button, true, Color(0.83, 0.12, 0.12, 0.88))
+    _set_action_icon(attack_button, "attack")
+    attack_button.pressed.connect(_try_attack)
+    control_layer.add_child(attack_button)
+    var jump_button := _create_action_button("", Vector2(-178, -196), Vector2(68, 68))
+    _style_action_button(jump_button, true, Color(0.96, 0.62, 0.08, 0.88))
     _set_action_icon(jump_button, "jump")
-    _add_button_caption(jump_button, "SALTAR")
-    jump_button.tooltip_text = "Mantener para saltar"
     jump_button.button_down.connect(player.mobile_action.bind("jump", true))
     jump_button.button_up.connect(player.mobile_action.bind("jump", false))
     control_layer.add_child(jump_button)
-
-    interact_button = _create_action_button("", Vector2(-184, -132), Vector2(72, 72))
+    var reload_button := _create_action_button("", Vector2(-188, -88), Vector2(60, 60))
+    _style_action_button(reload_button, true, Color(0.30, 0.42, 0.48, 0.86))
+    _set_action_icon(reload_button, "reload")
+    reload_button.tooltip_text = "Acción secundaria"
+    control_layer.add_child(reload_button)
+    interact_button = _create_action_button("", Vector2(-90, -257), Vector2(62, 62))
+    _style_action_button(interact_button, true, Color(0.18, 0.56, 0.24, 0.88))
     _set_action_icon(interact_button, "use")
-    _add_button_caption(interact_button, "RECOGER")
-    interact_button.tooltip_text = "Recolectar recurso"
     interact_button.pressed.connect(_try_harvest)
     control_layer.add_child(interact_button)
-
-    var attack_button := _create_action_button("", Vector2(-98, -128), Vector2(88, 88))
-    _set_action_icon(attack_button, "attack")
-    _add_button_caption(attack_button, "ATACAR")
-    attack_button.tooltip_text = "Golpear / atacar"
-    attack_button.pressed.connect(_try_attack)
-    control_layer.add_child(attack_button)
-
-    # Inventario y fabricación quedan como utilidades pequeñas bajo el minimapa.
     var bag := _create_action_button("", Vector2(-154, 142), Vector2(68, 62), true)
     _set_action_icon(bag, "backpack")
     _add_button_caption(bag, "MOCHILA")
-    bag.tooltip_text = "Abrir mochila e objetos"
-    bag.tooltip_text = "Abrir inventario"
     bag.pressed.connect(_toggle_inventory_panel)
     control_layer.add_child(bag)
     var craft := _create_action_button("", Vector2(-78, 142), Vector2(68, 62), true)
     _set_action_icon(craft, "craft")
     _add_button_caption(craft, "FABRICAR")
-    craft.tooltip_text = "Abrir mesa de fabricación"
-    craft.tooltip_text = "Abrir fabricación"
     craft.pressed.connect(_toggle_craft_panel)
     control_layer.add_child(craft)
-
-    # Hotbar compacta de seis casillas, translúcida y con selección muy visible.
     var hotbar_panel := PanelContainer.new()
     hotbar_panel.anchor_left = 0.5
     hotbar_panel.anchor_right = 0.5
     hotbar_panel.anchor_top = 1.0
     hotbar_panel.anchor_bottom = 1.0
-    hotbar_panel.position = Vector2(-258, -88)
-    hotbar_panel.custom_minimum_size = Vector2(516, 80)
+    hotbar_panel.position = Vector2(-200, -82)
+    hotbar_panel.custom_minimum_size = Vector2(400, 64)
     _style_hotbar_tray(hotbar_panel)
     control_layer.add_child(hotbar_panel)
     var hotbar := HBoxContainer.new()
-    hotbar.add_theme_constant_override("separation", 7)
+    hotbar.add_theme_constant_override("separation", 6)
     hotbar.alignment = BoxContainer.ALIGNMENT_CENTER
     hotbar_panel.add_child(hotbar)
     var slot_names := ["PIEDRA", "HACHA", "PICO", "MADERA", "FOGATA", "VACÍO"]
-    var slot_models := [
-        "resource-stone.glb",
-        "tool-axe.glb",
-        "tool-pickaxe.glb",
-        "resource-wood.glb",
-        "campfire-pit.glb",
-        ""
-    ]
+    var slot_models := ["resource-stone.glb", "tool-axe.glb", "tool-pickaxe.glb", "resource-wood.glb", "campfire-pit.glb", ""]
     for i in range(6):
         var slot := Button.new()
         slot.text = ""
-        slot.custom_minimum_size = Vector2(78, 70)
+        slot.custom_minimum_size = Vector2(56, 56)
         slot.clip_contents = true
         _style_hotbar_slot(slot, i == selected_hotbar_index)
         hotbar.add_child(slot)
         hotbar_slots.append(slot)
         slot.pressed.connect(_select_hotbar_slot.bind(i))
         _make_hotbar_preview(slot, slot_models[i], slot_names[i], i + 1)
-
     _make_craft_panel()
     _make_inventory_panel()
 
-func _add_button_caption(button: Button, caption: String) -> void:
-    # Etiqueta siempre visible: los iconos no dependen del reconocimiento del jugador.
-    var tag := Label.new()
-    tag.text = caption
-    tag.anchor_left = 0.0
-    tag.anchor_right = 1.0
-    tag.anchor_top = 1.0
-    tag.anchor_bottom = 1.0
-    tag.offset_left = 1.0
-    tag.offset_right = -1.0
-    tag.offset_top = -19.0
-    tag.offset_bottom = -2.0
-    tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-    tag.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-    tag.add_theme_font_size_override("font_size", 9)
-    tag.add_theme_color_override("font_color", Color(1.0, 0.98, 0.91))
-    tag.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 1.0))
-    tag.add_theme_constant_override("shadow_offset_x", 1)
-    tag.add_theme_constant_override("shadow_offset_y", 1)
-    tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
-    button.add_child(tag)
-
 func _make_bar(parent: VBoxContainer, caption: String, tint: Color) -> ProgressBar:
+    var row_panel := PanelContainer.new()
+    var row_style := StyleBoxFlat.new()
+    row_style.bg_color = Color(0.015, 0.025, 0.022, 0.13)
+    row_style.border_color = Color(1.0, 1.0, 1.0, 0.16)
+    row_style.set_border_width_all(1)
+    row_style.set_corner_radius_all(12)
+    row_style.set_content_margin(SIDE_LEFT, 4)
+    row_style.set_content_margin(SIDE_RIGHT, 7)
+    row_style.set_content_margin(SIDE_TOP, 3)
+    row_style.set_content_margin(SIDE_BOTTOM, 3)
+    row_panel.add_theme_stylebox_override("panel", row_style)
+    parent.add_child(row_panel)
     var row := HBoxContainer.new()
     row.add_theme_constant_override("separation", 6)
-    parent.add_child(row)
-    var label := Label.new()
-    label.text = caption
-    label.custom_minimum_size = Vector2(82, 0)
-    label.add_theme_font_size_override("font_size", 10)
-    label.add_theme_color_override("font_color", Color(1.0, 0.96, 0.88) if caption == "VIDA" else Color(0.91, 0.94, 0.93))
-    row.add_child(label)
+    row_panel.add_child(row)
+    var icon := Label.new()
+    icon.text = "♥" if caption == "VIDA" else ("●" if caption == "HAMBRE" else ("◆" if caption == "SED" else "⚡"))
+    icon.custom_minimum_size = Vector2(19, 20)
+    icon.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    icon.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+    icon.add_theme_font_size_override("font_size", 15)
+    icon.add_theme_color_override("font_color", tint)
+    row.add_child(icon)
     var bar := ProgressBar.new()
     bar.min_value = 0
     bar.max_value = 100
     bar.value = 100
-    bar.show_percentage = true
-    bar.custom_minimum_size = Vector2(128, 19 if caption == "VIDA" else 16)
+    bar.show_percentage = false
+    bar.custom_minimum_size = Vector2(110, 9)
     bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    bar.add_theme_font_size_override("font_size", 9)
-    bar.add_theme_color_override("font_color", Color.WHITE)
-    var track := StyleBoxFlat.new()
-    track.bg_color = Color(0.025, 0.035, 0.040, 0.18)
-    track.border_color = Color(0.80, 0.86, 0.86, 0.30)
-    track.set_border_width_all(1)
-    track.set_corner_radius_all(3)
-    bar.add_theme_stylebox_override("background", track)
-    var fill := StyleBoxFlat.new()
-    fill.bg_color = tint
-    fill.set_corner_radius_all(4)
-    fill.border_color = tint.lightened(0.28)
-    fill.set_border_width_all(1)
-    fill.shadow_color = tint.darkened(0.45)
-    fill.shadow_size = 2
-    bar.add_theme_stylebox_override("fill", fill)
+    bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+    bar.add_theme_stylebox_override("background", _make_progress_style(Color(0, 0, 0, 0.22), Color(1, 1, 1, 0.18), 4))
+    bar.add_theme_stylebox_override("fill", _make_progress_style(tint, tint.lightened(0.24), 4))
     row.add_child(bar)
+    var value_label := Label.new()
+    value_label.text = "100"
+    value_label.custom_minimum_size = Vector2(24, 0)
+    value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+    value_label.add_theme_font_size_override("font_size", 10)
+    value_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.95))
+    row.add_child(value_label)
+    bar.set_meta("value_label", value_label)
     return bar
+
+func _make_progress_style(fill_color: Color, edge_color: Color, radius: int) -> StyleBoxFlat:
+    var style := StyleBoxFlat.new()
+    style.bg_color = fill_color
+    style.border_color = edge_color
+    style.set_border_width_all(1)
+    style.set_corner_radius_all(radius)
+    return style
 
 func _style_action_panel(panel: Control) -> void:
     var style := StyleBoxFlat.new()
@@ -1456,32 +1422,26 @@ func _set_action_icon(button: Button, icon_name: String) -> void:
         button.icon = load(icon_path) as Texture2D
         button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
-func _style_action_button(button: Button, round_button: bool = false) -> void:
-    # Control táctil circular: vidrio ahumado, aro claro y sombra para separarlo del mundo.
+func _style_action_button(button: Button, round_button: bool = false, tint: Color = Color(0.025, 0.038, 0.046, 0.24)) -> void:
     var normal := StyleBoxFlat.new()
-    normal.bg_color = Color(0.025, 0.038, 0.046, 0.24)
-    normal.border_color = Color(0.82, 0.90, 0.94, 0.76)
+    normal.bg_color = tint
+    normal.border_color = Color(0.94, 0.97, 0.98, 0.48)
     normal.set_border_width_all(2)
-    normal.set_corner_radius_all(999 if round_button else 12)
-    normal.shadow_color = Color(0.0, 0.0, 0.0, 0.48)
-    normal.shadow_size = 8
-    normal.shadow_offset = Vector2(0, 3)
-    normal.set_content_margin_all(7)
+    normal.set_corner_radius_all(999 if round_button else 10)
+    normal.shadow_color = Color(0, 0, 0, 0.34)
+    normal.shadow_size = 5
+    normal.shadow_offset = Vector2(0, 2)
+    normal.set_content_margin_all(6)
     button.add_theme_stylebox_override("normal", normal)
-    var pressed := StyleBoxFlat.new()
-    pressed.bg_color = Color(0.12, 0.24, 0.30, 0.48)
-    pressed.border_color = Color(0.68, 0.86, 1.0, 0.95)
-    pressed.set_border_width_all(2)
-    pressed.set_corner_radius_all(999 if round_button else 12)
-    pressed.shadow_color = Color(0.0, 0.0, 0.0, 0.34)
+    var pressed := normal.duplicate() as StyleBoxFlat
+    pressed.bg_color = tint.lightened(0.25)
+    pressed.border_color = Color(1, 0.86, 0.40, 0.95)
     pressed.shadow_size = 3
-    pressed.shadow_offset = Vector2(0, 1)
-    pressed.set_content_margin_all(7)
     button.add_theme_stylebox_override("pressed", pressed)
     var hover := normal.duplicate() as StyleBoxFlat
-    hover.bg_color = Color(0.13, 0.16, 0.18, 0.32)
+    hover.bg_color = tint.lightened(0.12)
     button.add_theme_stylebox_override("hover", hover)
-    button.add_theme_color_override("font_color", Color(0.97, 0.98, 1.0))
+    button.add_theme_color_override("font_color", Color(0.97, 0.98, 1))
     button.add_theme_color_override("font_pressed_color", Color.WHITE)
     button.add_theme_color_override("font_hover_color", Color.WHITE)
     button.add_theme_font_size_override("font_size", 11)
