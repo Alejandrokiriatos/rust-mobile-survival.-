@@ -99,7 +99,7 @@ func _make_chunk(chunk_x: int, chunk_z: int, blade_mesh: Mesh, blade_material: M
         if gy <= -2.5 or gy > 26.0 or 1.0 - normal.y > 0.48:
             multi.set_instance_transform(i, Transform3D(Basis.IDENTITY.scaled(Vector3.ZERO), Vector3(local_x, gy, local_z)))
             multi.set_instance_color(i, Color(0, 0, 0, 0))
-            multi.set_instance_custom_data(i, Color.ZERO)
+            multi.set_instance_custom_data(i, Color(0, 0, 0, 0))
             continue
         var scale_x := rng.randf_range(0.82, 1.24)
         var scale_y := rng.randf_range(0.78, 1.32)
