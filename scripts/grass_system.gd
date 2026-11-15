@@ -1,12 +1,11 @@
 extends Node3D
 
-const WORLD_SIZE := 512.0
-const CHUNK_COUNT := 4
-const CHUNK_SIZE := WORLD_SIZE / float(CHUNK_COUNT)
-const CLUMPS_PER_CHUNK := 240000
-const GRASS_HEIGHT := 0.155
-const BLADE_COUNT := 9
-const CARPET_RESOLUTION := 64
+# Manto de hierba local: 40.000 hojas triangulares en un radio de 20 metros.
+const GRASS_RADIUS := 20.0
+const GRASS_INSTANCE_COUNT := 40000
+const CARPET_RESOLUTION := 48
+const MIN_BLADE_HEIGHT := 0.25
+const MAX_BLADE_HEIGHT := 0.65
 
 var world_ref: Node3D
 var rng := RandomNumberGenerator.new()
@@ -14,61 +13,46 @@ var rng := RandomNumberGenerator.new()
 func build(world: Node3D) -> void:
     world_ref = world
     rng.seed = 73519
-    var blade_mesh := _make_blade_cluster()
-    var blade_material := _make_wind_material()
-    var carpet_material := _make_carpet_material()
-    for z in range(CHUNK_COUNT):
-        for x in range(CHUNK_COUNT):
-            _make_carpet(x, z, carpet_material)
-            _make_chunk(x, z, blade_mesh, blade_material)
+    var center := Vector3.ZERO
+    if world_ref.get("player") != null and is_instance_valid(world_ref.get("player")):
+        center = world_ref.get("player").global_position
+    _make_green_carpet(center)
+    _make_instanced_grass(center)
 
-func _make_blade_cluster() -> ArrayMesh:
-    var vertices := PackedVector3Array()
-    var normals := PackedVector3Array()
-    var colors := PackedColorArray()
-    var indices := PackedInt32Array()
-    for blade in range(BLADE_COUNT):
-        var yaw := float(blade) * PI * 0.5 + (0.17 if blade % 2 == 0 else -0.11)
-        var direction := Vector3(sin(yaw), 0.0, cos(yaw))
-        var side := Vector3(cos(yaw), 0.0, -sin(yaw))
-        var base := vertices.size()
-        for segment in range(5):
-            var t := float(segment) / 4.0
-            var half_width := maxf(0.0008, 0.039 * pow(1.0 - t, 1.18))
-            var center := direction * (t * t * 0.065) + Vector3.UP * (t * GRASS_HEIGHT)
-            vertices.append(center - side * half_width)
-            vertices.append(center + side * half_width)
-            var tint := Color(0.105, 0.205, 0.055).lerp(Color(0.43, 0.43, 0.105), t)
-            colors.append(tint.darkened(0.035))
-            colors.append(tint.lightened(0.025))
-            normals.append(Vector3.UP)
-            normals.append(Vector3.UP)
-            if segment < 4:
-                var a := base + segment * 2
-                indices.append_array(PackedInt32Array([a, a + 1, a + 2, a + 1, a + 3, a + 2]))
+func _make_leaf_mesh() -> ArrayMesh:
+    # Una hoja triangular real: base ancha, punta fina y una ligera curvatura.
+    var vertices := PackedVector3Array([
+        Vector3(-0.032, 0.0, 0.0),
+        Vector3(0.032, 0.0, 0.0),
+        Vector3(0.0, 0.52, 0.025)
+    ])
+    var colors := PackedColorArray([
+        Color(0.12, 0.30, 0.055),
+        Color(0.16, 0.39, 0.07),
+        Color(0.48, 0.64, 0.16)
+    ])
     var arrays := []
     arrays.resize(Mesh.ARRAY_MAX)
     arrays[Mesh.ARRAY_VERTEX] = vertices
-    arrays[Mesh.ARRAY_NORMAL] = normals
     arrays[Mesh.ARRAY_COLOR] = colors
-    arrays[Mesh.ARRAY_INDEX] = indices
+    arrays[Mesh.ARRAY_INDEX] = PackedInt32Array([0, 2, 1])
     var mesh := ArrayMesh.new()
     mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
     return mesh
 
-func _make_wind_material() -> ShaderMaterial:
+func _make_leaf_material() -> ShaderMaterial:
     var shader := Shader.new()
     shader.code = """
 shader_type spatial;
 render_mode cull_disabled, diffuse_burley, specular_disabled;
-uniform float wind_strength = 0.035;
-uniform float wind_speed = 1.05;
+uniform float wind_strength = 0.045;
+uniform float wind_speed = 1.15;
 void vertex() {
-    float phase = INSTANCE_CUSTOM.r * 6.28318;
-    float h = clamp(VERTEX.y / 0.155, 0.0, 1.0);
-    float breeze = sin(TIME * wind_speed + phase + VERTEX.x * 3.0 + VERTEX.z * 3.0);
+    float phase = INSTANCE_CUSTOM.r * 6.2831853;
+    float h = clamp(VERTEX.y / 0.52, 0.0, 1.0);
+    float breeze = sin(TIME * wind_speed + phase + INSTANCE_CUSTOM.g * 5.0);
     VERTEX.x += breeze * wind_strength * h * h;
-    VERTEX.z += cos(TIME * 0.7 + phase) * wind_strength * 0.35 * h;
+    VERTEX.z += cos(TIME * wind_speed * 0.73 + phase) * wind_strength * 0.45 * h * h;
 }
 void fragment() {
     ALBEDO = COLOR.rgb;
@@ -79,67 +63,31 @@ void fragment() {
     material.shader = shader
     return material
 
-func _make_carpet_material() -> ShaderMaterial:
-    # Capa de microhierba procedural: rellena visualmente los huecos entre
-    # las hojas instanciadas sin multiplicar millones de polígonos adicionales.
-    var shader := Shader.new()
-    shader.code = """
-shader_type spatial;
-render_mode cull_disabled, diffuse_burley, specular_disabled;
-varying vec3 grass_world_pos;
-float hash21(vec2 p) {
-    p = fract(p * vec2(123.34, 456.21));
-    p += dot(p, p + 45.32);
-    return fract(p.x * p.y);
-}
-void vertex() {
-    grass_world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-}
-void fragment() {
-    vec2 p = grass_world_pos.xz * 34.0;
-    vec2 cell = floor(p);
-    vec2 f = fract(p);
-    float rnd = hash21(cell);
-    float lean = (rnd - 0.5) * 0.55;
-    float blade_line = abs(f.x - (0.5 + lean + (f.y - 0.5) * 0.18));
-    float blade = 1.0 - smoothstep(0.025, 0.105, blade_line);
-    float tip = smoothstep(0.05, 0.95, f.y);
-    float variation = hash21(floor(grass_world_pos.xz * 5.0)) * 0.12;
-    vec3 soil_green = vec3(0.035, 0.105, 0.018);
-    vec3 leaf_green = vec3(0.105, 0.225, 0.035);
-    vec3 color = mix(soil_green, leaf_green, blade * (0.65 + tip * 0.35));
-    color *= 0.88 + variation;
-    ALBEDO = color;
-    ROUGHNESS = 1.0;
-}
-"""
-    var material := ShaderMaterial.new()
-    material.shader = shader
-    return material
-
-func _make_carpet(chunk_x: int, chunk_z: int, material: Material) -> void:
-    var center_x := -WORLD_SIZE * 0.5 + (float(chunk_x) + 0.5) * CHUNK_SIZE
-    var center_z := -WORLD_SIZE * 0.5 + (float(chunk_z) + 0.5) * CHUNK_SIZE
+func _make_green_carpet(center: Vector3) -> void:
+    # Superficie verde continua debajo de las hojas para que la tierra no
+    # quede expuesta entre las instancias. Sigue la altura real del terreno.
     var vertices := PackedVector3Array()
     var normals := PackedVector3Array()
     var indices := PackedInt32Array()
-    var step := CHUNK_SIZE / float(CARPET_RESOLUTION)
+    var diameter := GRASS_RADIUS * 2.0
+    var step := diameter / float(CARPET_RESOLUTION)
     for z in range(CARPET_RESOLUTION + 1):
         for x in range(CARPET_RESOLUTION + 1):
-            var lx := -CHUNK_SIZE * 0.5 + float(x) * step
-            var lz := -CHUNK_SIZE * 0.5 + float(z) * step
-            var wx := center_x + lx
-            var wz := center_z + lz
+            var lx := -GRASS_RADIUS + float(x) * step
+            var lz := -GRASS_RADIUS + float(z) * step
+            var wx := center.x + lx
+            var wz := center.z + lz
             var gy: float = world_ref.call("_height_at", wx, wz)
-            vertices.append(Vector3(lx, gy + 0.0015, lz))
-            var normal: Vector3 = world_ref.call("_terrain_normal_at", wx, wz)
-            normals.append(normal)
+            vertices.append(Vector3(lx, gy + 0.006, lz))
+            normals.append(world_ref.call("_terrain_normal_at", wx, wz))
             if x < CARPET_RESOLUTION and z < CARPET_RESOLUTION:
                 var a := z * (CARPET_RESOLUTION + 1) + x
                 var b := a + 1
                 var c := a + CARPET_RESOLUTION + 1
                 var d := c + 1
-                indices.append_array(PackedInt32Array([a, c, b, b, c, d]))
+                var cell_center := Vector2(lx + step * 0.5, lz + step * 0.5)
+                if cell_center.length() <= GRASS_RADIUS:
+                    indices.append_array(PackedInt32Array([a, c, b, b, c, d]))
     var arrays := []
     arrays.resize(Mesh.ARRAY_MAX)
     arrays[Mesh.ARRAY_VERTEX] = vertices
@@ -147,90 +95,63 @@ func _make_carpet(chunk_x: int, chunk_z: int, material: Material) -> void:
     arrays[Mesh.ARRAY_INDEX] = indices
     var mesh := ArrayMesh.new()
     mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+
+    var material := StandardMaterial3D.new()
+    material.albedo_color = Color(0.105, 0.205, 0.045)
+    material.roughness = 1.0
     var carpet := MeshInstance3D.new()
-    carpet.name = "GrassCarpet_%d_%d" % [chunk_x, chunk_z]
+    carpet.name = "GrassCarpet_20m"
     carpet.mesh = mesh
     carpet.material_override = material
-    carpet.position = Vector3(center_x, 0.0, center_z)
+    carpet.position = Vector3(center.x, 0.0, center.z)
     carpet.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
     add_child(carpet)
 
-func _make_flowers(chunk_x: int, chunk_z: int, center_x: float, center_z: float) -> void:
-    var flower_mesh := SphereMesh.new()
-    flower_mesh.radius = 0.018
-    flower_mesh.height = 0.036
-    flower_mesh.radial_segments = 5
-    flower_mesh.rings = 3
-    var flower_material := StandardMaterial3D.new()
-    flower_material.vertex_color_use_as_albedo = true
-    flower_material.roughness = 0.85
-    var flowers := MultiMesh.new()
-    flowers.transform_format = MultiMesh.TRANSFORM_3D
-    flowers.use_colors = true
-    flowers.mesh = flower_mesh
-    flowers.instance_count = 500
-    for i in range(500):
-        var wx := center_x + rng.randf_range(-CHUNK_SIZE * 0.49, CHUNK_SIZE * 0.49)
-        var wz := center_z + rng.randf_range(-CHUNK_SIZE * 0.49, CHUNK_SIZE * 0.49)
-        var gy: float = world_ref.call("_height_at", wx, wz)
-        var normal: Vector3 = world_ref.call("_terrain_normal_at", wx, wz)
-        if gy <= -2.5 or gy > 24.0 or 1.0 - normal.y > 0.42:
-            flowers.set_instance_transform(i, Transform3D(Basis.IDENTITY.scaled(Vector3.ZERO), Vector3.ZERO))
-            continue
-        var scale := rng.randf_range(0.65, 1.15)
-        var basis := Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3(scale, scale, scale))
-        flowers.set_instance_transform(i, Transform3D(basis, Vector3(wx - center_x, gy + 0.055, wz - center_z)))
-        flowers.set_instance_color(i, Color(1.0, 0.88, 0.28) if rng.randf() > 0.5 else Color(0.96, 0.96, 0.88))
-    var flower_node := MultiMeshInstance3D.new()
-    flower_node.name = "Wildflowers_%d_%d" % [chunk_x, chunk_z]
-    flower_node.multimesh = flowers
-    flower_node.material_override = flower_material
-    flower_node.position = Vector3(center_x, 0.0, center_z)
-    flower_node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-    flower_node.custom_aabb = AABB(Vector3(-CHUNK_SIZE * 0.5, -8.0, -CHUNK_SIZE * 0.5), Vector3(CHUNK_SIZE, 42.0, CHUNK_SIZE))
-    add_child(flower_node)
-
-func _make_chunk(chunk_x: int, chunk_z: int, blade_mesh: Mesh, blade_material: Material) -> void:
-    var center_x := -WORLD_SIZE * 0.5 + (float(chunk_x) + 0.5) * CHUNK_SIZE
-    var center_z := -WORLD_SIZE * 0.5 + (float(chunk_z) + 0.5) * CHUNK_SIZE
+func _make_instanced_grass(center: Vector3) -> void:
+    var leaf_mesh := _make_leaf_mesh()
     var multi := MultiMesh.new()
     multi.transform_format = MultiMesh.TRANSFORM_3D
     multi.use_colors = true
     multi.use_custom_data = true
-    multi.mesh = blade_mesh
-    multi.instance_count = CLUMPS_PER_CHUNK
-    var grid_side := ceili(sqrt(float(CLUMPS_PER_CHUNK)))
-    for i in range(CLUMPS_PER_CHUNK):
-        var cell_x := i % grid_side
-        var cell_z := int(i / grid_side)
-        var cell_size := CHUNK_SIZE / float(grid_side)
-        var lx := -CHUNK_SIZE * 0.5 + (float(cell_x) + rng.randf_range(0.08, 0.92)) * cell_size
-        var lz := -CHUNK_SIZE * 0.5 + (float(cell_z) + rng.randf_range(0.08, 0.92)) * cell_size
-        var wx := center_x + lx
-        var wz := center_z + lz
+    multi.mesh = leaf_mesh
+    multi.instance_count = GRASS_INSTANCE_COUNT
+
+    for i in range(GRASS_INSTANCE_COUNT):
+        # Distribución uniforme en un disco de radio 20 m.
+        var angle := rng.randf_range(0.0, TAU)
+        var distance := GRASS_RADIUS * sqrt(rng.randf())
+        var wx := center.x + cos(angle) * distance
+        var wz := center.z + sin(angle) * distance
         var gy: float = world_ref.call("_height_at", wx, wz)
         var normal: Vector3 = world_ref.call("_terrain_normal_at", wx, wz)
+
+        # Evitar colocar hierba en agua, acantilados o cimas rocosas.
         if gy <= -2.5 or gy > 26.0 or 1.0 - normal.y > 0.48:
-            multi.set_instance_transform(i, Transform3D(Basis.IDENTITY.scaled(Vector3.ZERO), Vector3(lx, gy, lz)))
+            multi.set_instance_transform(i, Transform3D(Basis.IDENTITY.scaled(Vector3.ZERO), Vector3(0.0, -100.0, 0.0)))
             multi.set_instance_color(i, Color.WHITE)
-            multi.set_instance_custom_data(i, Color(rng.randf(), 0, 0, 1))
+            multi.set_instance_custom_data(i, Color.ZERO)
             continue
-        var sx := rng.randf_range(0.82, 1.18)
-        var sy := rng.randf_range(0.72, 1.12)
-        var basis := Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3(sx, sy, sx))
-        multi.set_instance_transform(i, Transform3D(basis, Vector3(lx, gy + 0.003, lz)))
-        var shade := rng.randf_range(0.82, 1.12)
-        multi.set_instance_color(i, Color(shade, shade * rng.randf_range(0.96, 1.04), shade * 0.88, 1.0))
-        multi.set_instance_custom_data(i, Color(rng.randf(), 0, 0, 1))
-    _make_flowers(chunk_x, chunk_z, center_x, center_z)
+
+        var height_scale := rng.randf_range(0.5, 1.3)
+        var width_scale := rng.randf_range(0.8, 1.35)
+        var yaw := rng.randf_range(0.0, TAU)
+        var lean := rng.randf_range(-0.13, 0.13)
+        var basis := Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, lean)
+        basis = basis.scaled(Vector3(width_scale, height_scale, width_scale))
+        multi.set_instance_transform(i, Transform3D(basis, Vector3(wx - center.x, gy + 0.008, wz - center.z)))
+
+        # Verde natural aleatorio, de sombra profunda a puntas claras.
+        var hue := rng.randf_range(0.23, 0.31)
+        var saturation := rng.randf_range(0.52, 0.78)
+        var value := rng.randf_range(0.30, 0.57)
+        multi.set_instance_color(i, Color.from_hsv(hue, saturation, value))
+        multi.set_instance_custom_data(i, Color(rng.randf(), rng.randf(), 0.0, 1.0))
+
     var grass := MultiMeshInstance3D.new()
-    grass.name = "DenseGrass_%d_%d" % [chunk_x, chunk_z]
+    grass.name = "Grass_40000_TriangularBlades"
     grass.multimesh = multi
-    grass.material_override = blade_material
-    grass.position = Vector3(center_x, 0.0, center_z)
+    grass.material_override = _make_leaf_material()
+    grass.position = Vector3(center.x, 0.0, center.z)
     grass.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-    grass.visibility_range_begin = 0.0
-    grass.visibility_range_end = 110.0
-    grass.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
-    grass.custom_aabb = AABB(Vector3(-CHUNK_SIZE * 0.5, -8.0, -CHUNK_SIZE * 0.5), Vector3(CHUNK_SIZE, 42.0, CHUNK_SIZE))
+    grass.custom_aabb = AABB(Vector3(-GRASS_RADIUS, -8.0, -GRASS_RADIUS), Vector3(GRASS_RADIUS * 2.0, 42.0, GRASS_RADIUS * 2.0))
     add_child(grass)
