@@ -8,8 +8,8 @@ var torch_light: OmniLight3D
 
 func _ready() -> void:
     torch_light = get_node_or_null("TorchLight") as OmniLight3D
-    flame = get_child(4) as MeshInstance3D if get_child_count() > 4 else null
-    inner_flame = get_child(5) as MeshInstance3D if get_child_count() > 5 else null
+    flame = get_node_or_null("TorchFlame") as MeshInstance3D
+    inner_flame = get_node_or_null("TorchInnerFlame") as MeshInstance3D
     if is_instance_valid(torch_light):
         base_energy = torch_light.light_energy
     set_process(true)
