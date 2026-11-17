@@ -1,0 +1,146 @@
+name: Integrar personajes animados y hierba en el juego
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/integrar-personajes-hierba.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Integrar modelo animado y vegetación
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("scripts/player.gd")
+          s = p.read_text()
+          marker = "var crouching := false\n"
+          addition = """var crouching := false
+          var character_visual: Node3D
+          var character_animation: AnimationPlayer
+          var current_character_animation := ""
+          const CHARACTER_SCENE := "res://assets/characters/laboratory/SKIN_01.glb"
+          const CHARACTER_HEIGHT := 1.75
+
+          func _load_character_visual() -> void:
+              if not ResourceLoader.exists(CHARACTER_SCENE):
+                  push_warning("No se encontró el personaje 3D del laboratorio.")
+                  return
+              var packed := load(CHARACTER_SCENE) as PackedScene
+              if packed == null:
+                  push_warning("El GLB del personaje no pudo convertirse en PackedScene.")
+                  return
+              character_visual = packed.instantiate() as Node3D
+              if character_visual == null:
+                  push_warning("La escena GLB no contiene un nodo 3D raíz.")
+                  return
+              character_visual.name = "LaboratoryCharacter"
+              add_child(character_visual)
+              var source_height := 1.81284
+              character_visual.scale = Vector3.ONE * (CHARACTER_HEIGHT / source_height)
+              character_animation = _find_animation_player(character_visual)
+              if character_animation != null:
+                  _play_character_animation("Idle")
+
+          func _find_animation_player(node: Node) -> AnimationPlayer:
+              if node is AnimationPlayer:
+                  return node
+              for child in node.get_children():
+                  var found := _find_animation_player(child)
+                  if found != null:
+                      return found
+              return null
+
+          func _play_character_animation(preferred: String) -> void:
+              if character_animation == null:
+                  return
+              var selected := ""
+              for animation_name in character_animation.get_animation_list():
+                  if String(animation_name).to_lower() == preferred.to_lower():
+                      selected = animation_name
+                      break
+              if selected.is_empty():
+                  var wanted := preferred.to_lower()
+                  for animation_name in character_animation.get_animation_list():
+                      if String(animation_name).to_lower().contains(wanted):
+                          selected = animation_name
+                          break
+              if selected.is_empty():
+                  return
+              if current_character_animation == selected:
+                  return
+              current_character_animation = selected
+              character_animation.play(selected)
+
+          func _update_character_animation() -> void:
+              if character_animation == null:
+                  return
+              if not is_on_floor():
+                  _play_character_animation("Jump")
+              elif crouching:
+                  _play_character_animation("Crouch idle")
+              elif Vector2(velocity.x, velocity.z).length() > 0.35:
+                  _play_character_animation("Run" if sprinting else "Walk")
+              else:
+                  _play_character_animation("Idle")
+          """
+          if "func _load_character_visual()" not in s:
+              assert marker in s, "No se encontró el punto de inserción del jugador"
+              s = s.replace(marker, addition, 1)
+              needle = "    add_to_group(\"player\")"
+              assert needle in s, "No se encontró el final de _ready del jugador"
+              s = s.replace(needle, "    _load_character_visual()\n" + needle, 1)
+              needle = "    move_and_slide()"
+              assert needle in s, "No se encontró move_and_slide"
+              s = s.replace(needle, needle + "\n    _update_character_animation()", 1)
+              p.write_text(s)
+
+          w = Path("scripts/world.gd")
+          s = w.read_text()
+          old = "    _scatter_resources()\n    # La hierba procedural queda desactivada temporalmente; se retomará después.\n    _spawn_wildlife()"
+          new = """    _scatter_resources()
+              # Vegetación del sistema procedural integrada después de crear el terreno.
+              var grass_system = GRASS_SYSTEM.new()
+              grass_system.name = "GrassSystem"
+              add_child(grass_system)
+              grass_system.build(self)
+              _spawn_wildlife()"""
+          if "grass_system.build(self)" not in s:
+              assert old in s, "No se encontró el punto de integración de la hierba"
+              s = s.replace(old, new, 1)
+              w.write_text(s)
+
+          g = Path("scripts/grass_system.gd")
+          s = g.read_text().replace("const WORLD_SIZE := 512.0", "const WORLD_SIZE := 768.0")
+          s = s.replace("const CLUMPS_PER_CHUNK := 8000", "const CLUMPS_PER_CHUNK := 4000")
+          g.write_text(s)
+          PY
+      - name: Comprobar integración
+        run: |
+          set -euo pipefail
+          grep -q '_load_character_visual()' scripts/player.gd
+          grep -q '_update_character_animation()' scripts/player.gd
+          grep -q 'grass_system.build(self)' scripts/world.gd
+          grep -q 'const WORLD_SIZE := 768.0' scripts/grass_system.gd
+      - name: Commit cambios integrados
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/player.gd scripts/world.gd scripts/grass_system.gd
+          if git diff --cached --quiet; then
+            echo "La integración ya estaba aplicada."
+          else
+            git commit -m "Integrar personaje 3D animado y hierba procedural"
+            git push
+          fi
