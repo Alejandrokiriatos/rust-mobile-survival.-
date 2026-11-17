@@ -614,11 +614,13 @@ func _make_player() -> void:
     add_child(player)
     held_tool_root = Node3D.new()
     held_tool_root.name = "HeldToolMount"
-    held_tool_root.rotation_degrees = Vector3(-18.0, -24.0, -12.0)
+    # El objeto nace desde la palma, no desde fuera de la muñeca.
+    # La rotación es ligera para respetar la orientación real del hueso RightHand.
+    held_tool_root.rotation_degrees = Vector3(-8.0, -6.0, -5.0)
     var right_hand_anchor := player.get_first_person_hand_attachment()
     if right_hand_anchor != null:
         right_hand_anchor.add_child(held_tool_root)
-        held_tool_root.position = Vector3(-0.18, -0.03, 0.0)
+        held_tool_root.position = Vector3(-0.035, 0.015, 0.025)
         print("HELD_TOOL_ATTACHMENT: RightHand bone")
     else:
         # Fallback seguro solo si algún GLB no trae el hueso de mano.
