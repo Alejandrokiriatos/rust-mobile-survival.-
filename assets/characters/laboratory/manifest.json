@@ -1,0 +1,95 @@
+{
+  "generator": "Ara 3D Gen",
+  "anatomy_and_base_assets": "MakeHuman CC0 1.0",
+  "player_target_height_m": 1.75,
+  "skins": {
+    "SKIN_01": {
+      "height_m": 1.812841033935547,
+      "triangles": 40072,
+      "bytes": 7429576,
+      "gender": "male",
+      "animation_count": 29
+    },
+    "SKIN_02": {
+      "height_m": 1.67114315032959,
+      "triangles": 41484,
+      "bytes": 8034016,
+      "gender": "female",
+      "animation_count": 29
+    },
+    "SKIN_03": {
+      "height_m": 1.871540641784668,
+      "triangles": 37786,
+      "bytes": 7385292,
+      "gender": "male",
+      "animation_count": 29
+    },
+    "SKIN_04": {
+      "height_m": 1.6755616188049318,
+      "triangles": 42894,
+      "bytes": 8136812,
+      "gender": "female",
+      "animation_count": 29
+    },
+    "SKIN_05": {
+      "height_m": 1.7438019752502443,
+      "triangles": 38920,
+      "bytes": 7806212,
+      "gender": "male",
+      "animation_count": 29
+    },
+    "SKIN_06": {
+      "height_m": 1.7243369102478028,
+      "triangles": 42720,
+      "bytes": 8084076,
+      "gender": "female",
+      "animation_count": 29
+    },
+    "SKIN_07": {
+      "height_m": 1.8230046272277833,
+      "triangles": 48620,
+      "bytes": 7300284,
+      "gender": "male",
+      "animation_count": 29
+    },
+    "SKIN_08": {
+      "height_m": 1.7003259658813477,
+      "triangles": 41484,
+      "bytes": 7961876,
+      "gender": "female",
+      "animation_count": 29
+    }
+  },
+  "optimized_for_mobile": true,
+  "retained_animation_clips": [
+    "Climb ladder down",
+    "Climb ladder up",
+    "Crouch idle",
+    "Death (fall backward)",
+    "Death (fall forward)",
+    "Fall",
+    "Get up (from back)",
+    "Hit reaction",
+    "Idle",
+    "Jump",
+    "Jump (in air)",
+    "Jump land",
+    "Jump start",
+    "Pick up (ground)",
+    "Punch",
+    "Rifle fire (single)",
+    "Rifle idle (low ready)",
+    "Rifle reload",
+    "Rifle run",
+    "Rifle walk (aiming)",
+    "Run",
+    "Strafe left",
+    "Strafe right",
+    "Swim breaststroke",
+    "Swim forward (front crawl)",
+    "Tread water",
+    "Vault over obstacle",
+    "Walk",
+    "Walk backwards"
+  ]
+}
