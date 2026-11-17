@@ -201,7 +201,16 @@ func _attach_first_person_model_arms() -> void:
     if first_person_character_animation == null:
         push_warning("La copia FPS del GLB no contiene AnimationPlayer.")
     else:
+        if not first_person_character_animation.animation_finished.is_connected(_on_first_person_animation_finished):
+            first_person_character_animation.animation_finished.connect(_on_first_person_animation_finished)
         print("FPS_RIG_ANIMATIONS ", first_person_character_animation.get_animation_list())
+
+
+func _on_first_person_animation_finished(_animation_name: StringName) -> void:
+    if first_person_character_animation == null or current_character_animation.is_empty():
+        return
+    if first_person_character_animation.has_animation(current_character_animation):
+        first_person_character_animation.play(current_character_animation)
 
 
 func _filter_imported_arm_meshes(root: Node) -> void:
@@ -411,6 +420,23 @@ func play_first_person_action(action: String) -> void:
             target_position = Vector3(0.0, 0.05, -0.02)
         _:
             target_rotation = Vector3(-12.0, 0.0, 8.0)
+
+    # Los GLB incluyen clips específicos para puñetazo, disparo y recarga.
+    # Usarlos en el rig FPS mantiene el movimiento en los huesos reales.
+    var action_clip := ""
+    match action:
+        "punch":
+            action_clip = "Punch"
+        "shoot":
+            action_clip = "Rifle fire (single)"
+        "reload":
+            action_clip = "Rifle reload"
+        "jump":
+            action_clip = "Jump start"
+    if not action_clip.is_empty() and first_person_character_animation != null:
+        if first_person_character_animation.has_animation(action_clip):
+            first_person_character_animation.play(action_clip)
+
     arms_action_tween = create_tween()
     arms_action_tween.tween_property(first_person_arms, "rotation_degrees", target_rotation, windup).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
     arms_action_tween.parallel().tween_property(first_person_arms, "position", target_position, windup)
