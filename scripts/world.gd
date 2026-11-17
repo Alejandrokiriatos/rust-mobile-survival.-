@@ -1691,6 +1691,14 @@ func _refresh_held_tool() -> void:
         world_model.rotation_degrees = Vector3(-8.0, 0.0, -8.0)
         world_model.position = Vector3.ZERO
         world_held_tool_root.add_child(world_model)
+        _set_visual_layers(world_model, 2)
+
+
+func _set_visual_layers(root: Node, layer_mask: int) -> void:
+    if root is VisualInstance3D:
+        (root as VisualInstance3D).layers = layer_mask
+    for child in root.get_children():
+        _set_visual_layers(child, layer_mask)
 
 func show_message(text_value: String) -> void:
     if is_instance_valid(message):
