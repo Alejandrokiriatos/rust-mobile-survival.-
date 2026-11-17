@@ -106,6 +106,7 @@ func set_character_skin(index: int) -> void:
     # las ocho apariencias siguen disponibles y sus animaciones siguen activas.
     character_visual.visible = false
     character_animation = _find_character_animation(character_visual)
+    _attach_first_person_model_arms()
     if character_animation == null:
         push_warning("El modelo se importó, pero no contiene AnimationPlayer.")
     else:
@@ -157,57 +158,45 @@ func set_character_body_visible(visible_value: bool) -> void:
         character_visual.visible = visible_value
 
 func _build_first_person_arms() -> void:
+    # Los brazos FPS deben salir del GLB real del personaje seleccionado.
+    # No crear cápsulas, esferas ni geometría sustitutiva.
     first_person_arms = Node3D.new()
     first_person_arms.name = "FirstPersonArms"
     camera.add_child(first_person_arms)
 
-    var sleeve := StandardMaterial3D.new()
-    sleeve.albedo_color = Color(0.22, 0.29, 0.19)
-    sleeve.roughness = 0.94
-    var skin := StandardMaterial3D.new()
-    skin.albedo_color = Color(0.66, 0.43, 0.31)
-    skin.roughness = 0.9
+func _add_arm_segment(_parent: Node3D, _start: Vector3, _finish: Vector3, _radius: float, _material: Material) -> void:
+    # Desactivado: los brazos proceden de los modelos SKIN_XX.glb.
+    pass
 
-    # Antebrazos visibles en el borde inferior del encuadre FPS; las manos quedan
-    # adelantadas para que se lean junto a la herramienta y no se pierdan bajo el HUD.
-    _add_arm_segment(first_person_arms, Vector3(-0.52, -0.30, -0.22), Vector3(-0.34, -0.36, -0.55), 0.145, sleeve)
-    _add_arm_segment(first_person_arms, Vector3(-0.34, -0.36, -0.55), Vector3(-0.17, -0.34, -0.83), 0.105, skin)
-    _add_arm_segment(first_person_arms, Vector3(0.52, -0.30, -0.22), Vector3(0.37, -0.36, -0.55), 0.145, sleeve)
-    _add_arm_segment(first_person_arms, Vector3(0.37, -0.36, -0.55), Vector3(0.23, -0.34, -0.83), 0.105, skin)
-    _add_arm_palm(first_person_arms, Vector3(-0.15, -0.34, -0.86), skin)
-    _add_arm_palm(first_person_arms, Vector3(0.25, -0.34, -0.86), skin)
+func _add_arm_palm(_parent: Node3D, _palm_position: Vector3, _material: Material) -> void:
+    # Desactivado: las manos proceden de los modelos SKIN_XX.glb.
+    pass
 
-func _add_arm_segment(parent: Node3D, start: Vector3, finish: Vector3, radius: float, material: Material) -> void:
-    var direction := finish - start
-    var length := direction.length()
-    if length < 0.001:
+func _attach_first_person_model_arms() -> void:
+    if not is_instance_valid(character_visual):
         return
-    var capsule := CapsuleMesh.new()
-    capsule.radius = radius
-    capsule.height = length + radius * 2.0
-    capsule.radial_segments = 8
-    capsule.rings = 3
-    var arm := MeshInstance3D.new()
-    arm.mesh = capsule
-    arm.material_override = material
-    arm.position = (start + finish) * 0.5
-    arm.basis = Basis(Quaternion(Vector3.UP, direction.normalized()))
-    arm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-    parent.add_child(arm)
+    var arm_model := character_visual.duplicate() as Node3D
+    if arm_model == null:
+        return
+    arm_model.name = "FirstPersonCharacterArms"
+    first_person_arms.add_child(arm_model)
+    arm_model.visible = true
+    # Registrar la estructura importada del GLB para aislar los brazos y manos
+    # por sus huesos/meshes reales, sin fabricar geometría.
+    _inspect_character_rig(arm_model)
 
-func _add_arm_palm(parent: Node3D, palm_position: Vector3, material: Material) -> void:
-    var palm_mesh := SphereMesh.new()
-    palm_mesh.radius = 0.092
-    palm_mesh.height = 0.16
-    palm_mesh.radial_segments = 10
-    palm_mesh.rings = 5
-    var palm := MeshInstance3D.new()
-    palm.mesh = palm_mesh
-    palm.material_override = material
-    palm.position = palm_position
-    palm.scale = Vector3(0.82, 0.72, 1.12)
-    palm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-    parent.add_child(palm)
+func _inspect_character_rig(node: Node) -> void:
+    if node is Skeleton3D:
+        var skeleton := node as Skeleton3D
+        var bone_names: Array[String] = []
+        for bone_index in range(skeleton.get_bone_count()):
+            bone_names.append(skeleton.get_bone_name(bone_index))
+        print("FPS_RIG_SKELETON ", skeleton.get_path(), " BONES=", bone_names)
+    elif node is MeshInstance3D:
+        var mesh_node := node as MeshInstance3D
+        print("FPS_RIG_MESH ", mesh_node.get_path(), " NAME=", mesh_node.name, " SKIN=", mesh_node.skin != null)
+    for child in node.get_children():
+        _inspect_character_rig(child)
 
 func _update_first_person_arms(delta: float) -> void:
     if not is_instance_valid(first_person_arms) or arms_action_active:
