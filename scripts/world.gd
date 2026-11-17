@@ -112,7 +112,6 @@ const JOYSTICK_SCRIPT = preload("res://scripts/mobile_joystick.gd")
 const ANIMAL_SCRIPT = preload("res://scripts/wild_animal.gd")
 const BUILDABLE_SCRIPT = preload("res://scripts/survival_buildable.gd")
 const TOOL_MODELS = preload("res://scripts/tool_models.gd")
-const GRASS_SYSTEM = preload("res://scripts/grass_system.gd")
 const WORLD_SIZE := 768.0
 const CHUNK_COUNT := 4
 const CHUNK_SIZE := WORLD_SIZE / CHUNK_COUNT
@@ -173,11 +172,6 @@ func _ready() -> void:
     _make_player()
     _make_hud()
     _scatter_resources()
-    # Hierba procedural densa por sectores: cada mata es una instancia compartida.
-    var grass_system = GRASS_SYSTEM.new()
-    grass_system.name = "GrassSystem"
-    add_child(grass_system)
-    grass_system.build(self)
     _spawn_wildlife()
     _load_game()
 
@@ -1641,14 +1635,6 @@ func _create_resource(pos: Vector3, kind: String) -> void:
         node.model_scale = Vector3.ONE * (0.85 if ResourceLoader.exists(NATURE_MEGA_PATH + "Bush_Common.gltf") else 3.0)
     add_child(node)
 
-func _scatter_ground_cover() -> void:
-    # Sistema procedural inspirado en la referencia: hojas pequeñas, finas,
-    # muy tupidas, variación natural de verdes y brisa animada. Sin colisión.
-    var grass := GRASS_SYSTEM.new()
-    grass.name = "ProceduralDenseGrass"
-    add_child(grass)
-    grass.build(self)
-
 func _refresh_held_tool() -> void:
     if not is_instance_valid(held_tool_root):
         return
@@ -1702,10 +1688,12 @@ func _try_attack() -> void:
         var swing := create_tween()
         swing.tween_property(held_tool_root, "rotation_degrees", Vector3(28.0, -8.0, 34.0), 0.10)
         swing.tween_property(held_tool_root, "rotation_degrees", Vector3(-18.0, -24.0, -12.0), 0.16)
-    if is_instance_valid(player.first_person_arms):
-        var arm_swing := create_tween()
-        arm_swing.tween_property(player.first_person_arms, "rotation_degrees", Vector3(-12.0, 0.0, 9.0), 0.10)
-        arm_swing.tween_property(player.first_person_arms, "rotation_degrees", Vector3.ZERO, 0.16)
+    if selected_hotbar_index == 1:
+        player.play_first_person_action("chop")
+    elif selected_hotbar_index == 2:
+        player.play_first_person_action("mine")
+    else:
+        player.play_first_person_action("punch")
     var from := player.camera.global_position
     var to := from + -player.camera.global_transform.basis.z * 3.2
     var query := PhysicsRayQueryParameters3D.create(from, to)
@@ -1740,6 +1728,12 @@ func _try_harvest() -> void:
         if node.resource_type == "Piedra" and selected_hotbar_index == 1:
             message.text = "El hacha no sirve para extraer roca. Equipa el pico."
             return
+        if node.resource_type == "Madera":
+            player.play_first_person_action("chop")
+        elif node.resource_type == "Piedra":
+            player.play_first_person_action("mine")
+        else:
+            player.play_first_person_action("punch")
         message.text = node.harvest(player)
     else:
         message.text = "Acércate a un árbol, roca o arbusto y apunta."
