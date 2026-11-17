@@ -190,10 +190,10 @@ func _attach_first_person_model_arms() -> void:
         push_warning("El GLB no produjo un Node3D para la vista FPS.")
         return
     arm_model.name = "FirstPersonCharacterArms"
-    arm_model.scale = character_visual.scale
-    # El origen del personaje está en los pies; bajamos el rig hasta que
-    # hombros, antebrazos y manos entren desde la parte inferior de la cámara.
-    arm_model.position = Vector3(0.0, -1.62 * arm_model.scale.y, -0.28)
+    # Vista de brazos ligeramente reducida y adelantada para que no ocupen
+    # media pantalla por estar demasiado cerca del plano de cámara.
+    arm_model.scale = character_visual.scale * 0.88
+    arm_model.position = Vector3(0.0, -1.34 * arm_model.scale.y, -0.62)
     first_person_arms.add_child(arm_model)
     arm_model.visible = true
     first_person_character_animation = _find_character_animation(arm_model)
@@ -255,11 +255,11 @@ func _collect_mesh_instances(node: Node, output: Array[MeshInstance3D]) -> void:
 
 func _is_first_person_arm_bone(bone_name: String) -> bool:
     var normalized := bone_name.to_lower().replace("_", "").replace(" ", "")
-    return normalized.begins_with("leftshoulder") \
-        or normalized.begins_with("leftarm") \
+    # Excluir Shoulder: algunos GLB asignan parte del torso a esos pesos.
+    # La vista FPS conserva brazos superiores, antebrazos, manos y dedos.
+    return normalized.begins_with("leftarm") \
         or normalized.begins_with("leftforearm") \
         or normalized.begins_with("lefthand") \
-        or normalized.begins_with("righthoulder") \
         or normalized.begins_with("rightarm") \
         or normalized.begins_with("rightforearm") \
         or normalized.begins_with("righthand")
@@ -278,6 +278,10 @@ func _extract_skinned_arms(source: ArrayMesh, skin: Skin, skeleton: Skeleton3D) 
     if arm_bind_indices.is_empty():
         push_warning("Skin no contiene binds nombrados de brazos/manos.")
         return null
+    var bind_report := PackedStringArray()
+    for bind_index in arm_bind_indices:
+        bind_report.append("%d:%s" % [bind_index, String(skin.get_bind_name(bind_index))])
+    print("FPS_RIG_ARM_BINDS ", bind_report)
 
     var result := ArrayMesh.new()
     var total_kept_triangles := 0
@@ -303,9 +307,11 @@ func _extract_skinned_arms(source: ArrayMesh, skin: Skin, skeleton: Skeleton3D) 
                     arm_weight += weight
             vertex_arm_weights[vertex_index] = arm_weight
 
-        var source_indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+        var source_indices := PackedInt32Array()
+        var raw_indices: Variant = arrays[Mesh.ARRAY_INDEX]
+        if raw_indices is PackedInt32Array:
+            source_indices = raw_indices
         if source_indices.is_empty():
-            source_indices = PackedInt32Array()
             for vertex_index in range(vertices.size()):
                 source_indices.append(vertex_index)
         var arm_indices := PackedInt32Array()
@@ -321,7 +327,7 @@ func _extract_skinned_arms(source: ArrayMesh, skin: Skin, skeleton: Skeleton3D) 
             var influenced_vertices := int(wa >= 0.25) + int(wb >= 0.25) + int(wd >= 0.25)
             var average_arm_weight := (wa + wb + wd) / 3.0
             # Incluye triángulos de transición del hombro sin arrastrar el torso.
-            if average_arm_weight >= 0.38 and influenced_vertices >= 2:
+            if average_arm_weight >= 0.46 and influenced_vertices >= 2:
                 arm_indices.append(a)
                 arm_indices.append(b)
                 arm_indices.append(d)
