@@ -25,6 +25,7 @@ var stamina := 100.0
 var crouching := false
 var character_visual: Node3D
 var character_animation: AnimationPlayer
+var first_person_character_animation: AnimationPlayer
 var current_character_animation := ""
 var first_person_arms: Node3D
 var arms_action_tween: Tween
@@ -84,6 +85,7 @@ func set_character_skin(index: int) -> void:
         character_visual.queue_free()
     character_visual = null
     character_animation = null
+    first_person_character_animation = null
     current_character_animation = ""
 
     var scene_path: String = CHARACTER_SCENES[index]
@@ -140,6 +142,8 @@ func _play_character_animation(preferred: String) -> void:
         return
     current_character_animation = selected
     character_animation.play(selected)
+    if first_person_character_animation != null and first_person_character_animation.has_animation(selected):
+        first_person_character_animation.play(selected)
 
 func _update_character_animation() -> void:
     if character_animation == null:
@@ -175,32 +179,180 @@ func _add_arm_palm(_parent: Node3D, _palm_position: Vector3, _material: Material
 func _attach_first_person_model_arms() -> void:
     if not is_instance_valid(character_visual):
         return
-    var arm_model := character_visual.duplicate() as Node3D
+    # Instanciar el GLB desde su PackedScene original evita duplicar un árbol
+    # esquelético vivo (Godot podía perder hijos durante Node.duplicate()).
+    var packed := ResourceLoader.load(CHARACTER_SCENES[character_skin_index]) as PackedScene
+    if packed == null:
+        push_warning("No se pudo volver a instanciar el GLB para los brazos FPS.")
+        return
+    var arm_model := packed.instantiate() as Node3D
     if arm_model == null:
+        push_warning("El GLB no produjo un Node3D para la vista FPS.")
         return
     arm_model.name = "FirstPersonCharacterArms"
+    arm_model.scale = character_visual.scale
+    # El origen del personaje está en los pies; bajamos el rig hasta que
+    # hombros, antebrazos y manos entren desde la parte inferior de la cámara.
+    arm_model.position = Vector3(0.0, -1.62 * arm_model.scale.y, -0.28)
     first_person_arms.add_child(arm_model)
     arm_model.visible = true
-    # Mantener únicamente meshes reales cuyo nombre identifique brazos/manos.
-    # Si el GLB usa una única malla corporal, el log lo revelará y se aislará
-    # mediante sus superficies/huesos en el siguiente ajuste, nunca con cápsulas.
+    first_person_character_animation = _find_character_animation(arm_model)
     _filter_imported_arm_meshes(arm_model)
+    if first_person_character_animation == null:
+        push_warning("La copia FPS del GLB no contiene AnimationPlayer.")
+    else:
+        print("FPS_RIG_ANIMATIONS ", first_person_character_animation.get_animation_list())
 
-func _filter_imported_arm_meshes(node: Node) -> void:
-    if node is Skeleton3D:
-        var skeleton := node as Skeleton3D
-        var bone_names: Array[String] = []
-        for bone_index in range(skeleton.get_bone_count()):
-            bone_names.append(skeleton.get_bone_name(bone_index))
-        print("FPS_RIG_SKELETON ", skeleton.get_path(), " BONES=", bone_names)
+
+func _filter_imported_arm_meshes(root: Node) -> void:
+    # El GLB se importa como UNA sola malla skineada llamada SKIN_XX.
+    # Separamos sus triángulos mediante los pesos reales de Left/RightArm,
+    # ForeArm, Hand y dedos; no se crean piezas ni geometría de sustitución.
+    var mesh_nodes: Array[MeshInstance3D] = []
+    _collect_mesh_instances(root, mesh_nodes)
+    var extracted_count := 0
+    for source_node in mesh_nodes:
+        if source_node.mesh == null or source_node.skin == null:
+            source_node.visible = false
+            continue
+        var skeleton := source_node.get_node_or_null(source_node.skeleton) as Skeleton3D
+        if skeleton == null:
+            source_node.visible = false
+            push_warning("No se encontró Skeleton3D para " + source_node.name)
+            continue
+        var source_array_mesh := source_node.mesh as ArrayMesh
+        if source_array_mesh == null:
+            source_node.visible = false
+            push_warning("La malla de " + source_node.name + " no es ArrayMesh.")
+            continue
+        var arms_mesh := _extract_skinned_arms(source_array_mesh, source_node.skin, skeleton)
+        source_node.visible = false
+        if arms_mesh == null or arms_mesh.get_surface_count() == 0:
+            push_warning("No se pudieron extraer triángulos de brazos desde " + source_node.name)
+            continue
+        var arms_instance := MeshInstance3D.new()
+        arms_instance.name = source_node.name + "_FPS_ARMS"
+        arms_instance.mesh = arms_mesh
+        arms_instance.skin = source_node.skin
+        arms_instance.skeleton = source_node.skeleton
+        arms_instance.transform = source_node.transform
+        arms_instance.layers = source_node.layers
+        arms_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+        source_node.get_parent().add_child(arms_instance)
+        extracted_count += 1
+        print("FPS_RIG_EXTRACTED ", arms_instance.get_path(),
+            " SURFACES=", arms_mesh.get_surface_count(),
+            " TRIANGLES=", _count_mesh_triangles(arms_mesh))
+    print("FPS_RIG_EXTRACTION_COMPLETE meshes=", extracted_count)
+
+
+func _collect_mesh_instances(node: Node, output: Array[MeshInstance3D]) -> void:
     if node is MeshInstance3D:
-        var mesh_node := node as MeshInstance3D
-        var mesh_name := mesh_node.name.to_lower()
-        var is_arm_mesh := mesh_name.contains("arm") or mesh_name.contains("hand") or mesh_name.contains("forearm") or mesh_name.contains("wrist")
-        mesh_node.visible = is_arm_mesh
-        print("FPS_RIG_MESH ", mesh_node.get_path(), " NAME=", mesh_node.name, " VISIBLE=", is_arm_mesh, " SKIN=", mesh_node.skin != null)
+        output.append(node as MeshInstance3D)
     for child in node.get_children():
-        _filter_imported_arm_meshes(child)
+        _collect_mesh_instances(child, output)
+
+
+func _is_first_person_arm_bone(bone_name: String) -> bool:
+    var normalized := bone_name.to_lower().replace("_", "").replace(" ", "")
+    return normalized.begins_with("leftshoulder") \
+        or normalized.begins_with("leftarm") \
+        or normalized.begins_with("leftforearm") \
+        or normalized.begins_with("lefthand") \
+        or normalized.begins_with("righthoulder") \
+        or normalized.begins_with("rightarm") \
+        or normalized.begins_with("rightforearm") \
+        or normalized.begins_with("righthand")
+
+
+func _extract_skinned_arms(source: ArrayMesh, skin: Skin, skeleton: Skeleton3D) -> ArrayMesh:
+    var arm_bind_indices: Dictionary = {}
+    for bind_index in range(skin.get_bind_count()):
+        var bind_name := String(skin.get_bind_name(bind_index))
+        if bind_name.is_empty():
+            var skeleton_bone := skin.get_bind_bone(bind_index)
+            if skeleton_bone >= 0 and skeleton_bone < skeleton.get_bone_count():
+                bind_name = skeleton.get_bone_name(skeleton_bone)
+        if _is_first_person_arm_bone(bind_name):
+            arm_bind_indices[bind_index] = true
+    if arm_bind_indices.is_empty():
+        push_warning("Skin no contiene binds nombrados de brazos/manos.")
+        return null
+
+    var result := ArrayMesh.new()
+    var total_kept_triangles := 0
+    for surface_index in range(source.get_surface_count()):
+        if source.surface_get_primitive_type(surface_index) != Mesh.PRIMITIVE_TRIANGLES:
+            continue
+        var arrays := source.surface_get_arrays(surface_index)
+        var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+        var bone_data: Variant = arrays[Mesh.ARRAY_BONES]
+        var weight_data: Variant = arrays[Mesh.ARRAY_WEIGHTS]
+        if vertices.is_empty() or bone_data == null or weight_data == null:
+            continue
+        var influences_per_vertex := 8 if bone_data.size() == vertices.size() * 8 else 4
+        var vertex_arm_weights := PackedFloat32Array()
+        vertex_arm_weights.resize(vertices.size())
+        for vertex_index in range(vertices.size()):
+            var arm_weight := 0.0
+            var base := vertex_index * influences_per_vertex
+            for influence in range(influences_per_vertex):
+                var palette_index := int(bone_data[base + influence])
+                var weight := float(weight_data[base + influence])
+                if weight > 0.0 and arm_bind_indices.has(palette_index):
+                    arm_weight += weight
+            vertex_arm_weights[vertex_index] = arm_weight
+
+        var source_indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+        if source_indices.is_empty():
+            source_indices = PackedInt32Array()
+            for vertex_index in range(vertices.size()):
+                source_indices.append(vertex_index)
+        var arm_indices := PackedInt32Array()
+        for triangle_start in range(0, source_indices.size() - 2, 3):
+            var a := source_indices[triangle_start]
+            var b := source_indices[triangle_start + 1]
+            var d := source_indices[triangle_start + 2]
+            if a >= vertices.size() or b >= vertices.size() or d >= vertices.size():
+                continue
+            var wa := vertex_arm_weights[a]
+            var wb := vertex_arm_weights[b]
+            var wd := vertex_arm_weights[d]
+            var influenced_vertices := int(wa >= 0.25) + int(wb >= 0.25) + int(wd >= 0.25)
+            var average_arm_weight := (wa + wb + wd) / 3.0
+            # Incluye triángulos de transición del hombro sin arrastrar el torso.
+            if average_arm_weight >= 0.38 and influenced_vertices >= 2:
+                arm_indices.append(a)
+                arm_indices.append(b)
+                arm_indices.append(d)
+        if arm_indices.is_empty():
+            continue
+
+        var arm_arrays: Array = []
+        arm_arrays.resize(Mesh.ARRAY_MAX)
+        for channel in [Mesh.ARRAY_VERTEX, Mesh.ARRAY_NORMAL, Mesh.ARRAY_TANGENT,
+            Mesh.ARRAY_COLOR, Mesh.ARRAY_TEX_UV, Mesh.ARRAY_TEX_UV2,
+            Mesh.ARRAY_BONES, Mesh.ARRAY_WEIGHTS]:
+            arm_arrays[channel] = arrays[channel]
+        arm_arrays[Mesh.ARRAY_INDEX] = arm_indices
+        var flags := 0
+        if influences_per_vertex == 8:
+            flags |= Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS
+        result.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arm_arrays, [], {}, flags)
+        var new_surface_index := result.get_surface_count() - 1
+        result.surface_set_name(new_surface_index, source.surface_get_name(surface_index))
+        total_kept_triangles += arm_indices.size() / 3
+    if total_kept_triangles == 0:
+        return null
+    return result
+
+
+func _count_mesh_triangles(mesh: Mesh) -> int:
+    var total := 0
+    for surface_index in range(mesh.get_surface_count()):
+        total += mesh.surface_get_array_index_len(surface_index) / 3
+    return total
+
 
 func _update_first_person_arms(delta: float) -> void:
     if not is_instance_valid(first_person_arms) or arms_action_active:
