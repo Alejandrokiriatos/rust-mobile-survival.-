@@ -618,7 +618,7 @@ func _make_player() -> void:
     var right_hand_anchor := player.get_first_person_hand_attachment()
     if right_hand_anchor != null:
         right_hand_anchor.add_child(held_tool_root)
-        held_tool_root.position = Vector3(-0.24, -0.03, 0.0)
+        held_tool_root.position = Vector3(-0.18, -0.03, 0.0)
         print("HELD_TOOL_ATTACHMENT: RightHand bone")
     else:
         # Fallback seguro solo si algún GLB no trae el hueso de mano.
