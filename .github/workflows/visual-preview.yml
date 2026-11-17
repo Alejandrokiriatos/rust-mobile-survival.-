@@ -59,6 +59,13 @@ jobs:
             exit 1
           fi
           cp "$SOURCE" artifacts/rust-mobile-survival-preview.png
+          CHARACTER_SOURCE="$HOME/.local/share/godot/app_userdata/Rust Mobile Survival/capture/rust-mobile-survival-character-preview.png"
+          if [ ! -s "$CHARACTER_SOURCE" ]; then
+            echo "No se encontró la vista del personaje: $CHARACTER_SOURCE"
+            find "$HOME/.local/share/godot/app_userdata" -type f -name "*character-preview.png" -print
+            exit 1
+          fi
+          cp "$CHARACTER_SOURCE" artifacts/rust-mobile-survival-character-preview.png
           MAP_SOURCE="$HOME/.local/share/godot/app_userdata/Rust Mobile Survival/capture/rust-mobile-survival-map.png"
           if [ ! -s "$MAP_SOURCE" ]; then
             echo "No se encontró la vista general del mapa: $MAP_SOURCE"
@@ -67,6 +74,7 @@ jobs:
           cp "$MAP_SOURCE" artifacts/rust-mobile-survival-map.png
           file artifacts/*.png
           test "$(stat -c%s artifacts/rust-mobile-survival-preview.png)" -gt 10000
+          test "$(stat -c%s artifacts/rust-mobile-survival-character-preview.png)" -gt 10000
           test "$(stat -c%s artifacts/rust-mobile-survival-map.png)" -gt 10000
 
       - name: Publicar captura como artefacto
