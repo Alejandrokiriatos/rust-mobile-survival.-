@@ -27,8 +27,21 @@ var character_visual: Node3D
 var character_animation: AnimationPlayer
 var current_character_animation := ""
 var first_person_arms: Node3D
-const CHARACTER_SCENE := "res://assets/characters/laboratory/SKIN_01.glb"
-const CHARACTER_SOURCE_HEIGHT := 1.812841
+@export_range(0, 7, 1) var character_skin_index := 0
+const CHARACTER_SCENES := [
+    "res://assets/characters/laboratory/SKIN_01.glb",
+    "res://assets/characters/laboratory/SKIN_02.glb",
+    "res://assets/characters/laboratory/SKIN_03.glb",
+    "res://assets/characters/laboratory/SKIN_04.glb",
+    "res://assets/characters/laboratory/SKIN_05.glb",
+    "res://assets/characters/laboratory/SKIN_06.glb",
+    "res://assets/characters/laboratory/SKIN_07.glb",
+    "res://assets/characters/laboratory/SKIN_08.glb"
+]
+const CHARACTER_SOURCE_HEIGHTS := [
+    1.812841, 1.671143, 1.871541, 1.675562,
+    1.743802, 1.724337, 1.823005, 1.700326
+]
 const CHARACTER_TARGET_HEIGHT := 1.75
 
 func _ready() -> void:
@@ -57,31 +70,44 @@ func _ready() -> void:
 
 
 func _load_character_visual() -> void:
-    if not ResourceLoader.exists(CHARACTER_SCENE):
-        push_warning("No se encontró el personaje 3D del laboratorio: " + CHARACTER_SCENE)
+    set_character_skin(character_skin_index)
+
+func set_character_skin(index: int) -> void:
+    if index < 0 or index >= CHARACTER_SCENES.size():
+        push_warning("Índice de apariencia fuera de rango: " + str(index))
         return
-    var packed := ResourceLoader.load(CHARACTER_SCENE) as PackedScene
+    character_skin_index = index
+    if is_instance_valid(character_visual):
+        character_visual.queue_free()
+    character_visual = null
+    character_animation = null
+    current_character_animation = ""
+
+    var scene_path: String = CHARACTER_SCENES[index]
+    if not ResourceLoader.exists(scene_path):
+        push_warning("No se encontró el personaje 3D del laboratorio: " + scene_path)
+        return
+    var packed := ResourceLoader.load(scene_path) as PackedScene
     if packed == null:
-        push_warning("Godot no pudo importar el GLB del personaje.")
+        push_warning("Godot no pudo importar el GLB del personaje: " + scene_path)
         return
     character_visual = packed.instantiate() as Node3D
     if character_visual == null:
         push_warning("La escena del personaje no tiene un nodo Node3D raíz.")
         return
-    character_visual.name = "LaboratoryCharacter"
-    var normalized_scale := CHARACTER_TARGET_HEIGHT / CHARACTER_SOURCE_HEIGHT
+    character_visual.name = "LaboratoryCharacter_%02d" % (index + 1)
+    var normalized_scale := CHARACTER_TARGET_HEIGHT / float(CHARACTER_SOURCE_HEIGHTS[index])
     character_visual.scale = Vector3.ONE * normalized_scale
     add_child(character_visual)
-    # El cuerpo completo se oculta durante la cámara en primera persona para
-    # evitar que la cabeza/malla atraviese la cámara. Sigue animándose y puede
-    # mostrarse en la vista externa de inspección/captura.
+    # El cuerpo se oculta en FPS para evitar que la cabeza atraviese la cámara;
+    # las ocho apariencias siguen disponibles y sus animaciones siguen activas.
     character_visual.visible = false
     character_animation = _find_character_animation(character_visual)
     if character_animation == null:
         push_warning("El modelo se importó, pero no contiene AnimationPlayer.")
     else:
         _play_character_animation("Idle")
-    print("CHARACTER_READY: ", CHARACTER_SCENE, " height=", CHARACTER_TARGET_HEIGHT)
+    print("CHARACTER_READY: SKIN_%02d height=%.2f" % [index + 1, CHARACTER_TARGET_HEIGHT])
 
 func _find_character_animation(node: Node) -> AnimationPlayer:
     if node is AnimationPlayer:
