@@ -157,6 +157,7 @@ var hotbar_slots: Array[Button] = []
 var selected_hotbar_index := 0
 var attack_cooldown := 0.0
 var held_tool_root: Node3D
+var world_held_tool_root: Node3D
 var territory_cabinet: SurvivalBuildable
 var territory_label: Label
 const TERRITORY_RADIUS := 28.0
@@ -627,6 +628,14 @@ func _make_player() -> void:
         player.camera.add_child(held_tool_root)
         held_tool_root.position = Vector3(0.38, -0.25, -0.62)
         push_warning("Herramienta en anclaje de cámara: no se encontró RightHand.")
+    world_held_tool_root = Node3D.new()
+    world_held_tool_root.name = "WorldHeldToolMount"
+    var body_hand_anchor := player.get_world_hand_attachment()
+    if body_hand_anchor != null:
+        body_hand_anchor.add_child(world_held_tool_root)
+        world_held_tool_root.position = Vector3(-0.025, 0.015, 0.025)
+        world_held_tool_root.rotation_degrees = Vector3(-8.0, -6.0, -5.0)
+        print("WORLD_HELD_TOOL_ATTACHMENT: body RightHand")
     _refresh_held_tool()
 
 func _make_hud() -> void:
@@ -1646,10 +1655,12 @@ func _create_resource(pos: Vector3, kind: String) -> void:
     add_child(node)
 
 func _refresh_held_tool() -> void:
-    if not is_instance_valid(held_tool_root):
-        return
-    for child in held_tool_root.get_children():
-        child.queue_free()
+    if is_instance_valid(held_tool_root):
+        for child in held_tool_root.get_children():
+            child.queue_free()
+    if is_instance_valid(world_held_tool_root):
+        for child in world_held_tool_root.get_children():
+            child.queue_free()
     var kind := ""
     match selected_hotbar_index:
         0: kind = "stone"
@@ -1664,14 +1675,22 @@ func _refresh_held_tool() -> void:
                 kind = "torch"
     if kind.is_empty():
         return
-    var model := TOOL_MODELS.create_tool(kind)
-    model.scale = Vector3.ONE * (0.64 if kind == "stone" else 0.62)
-    model.rotation_degrees = Vector3(-8.0, 0.0, -8.0)
-    if kind == "stone":
-        # El punto de agarre del canto rodado queda en el centro de la palma,
-        # no por delante de los dedos ni separado del hueso de la mano.
-        model.position = Vector3.ZERO
-    held_tool_root.add_child(model)
+
+    # Vista local: herramienta reducida para no tapar la pantalla.
+    if is_instance_valid(held_tool_root):
+        var first_person_model := TOOL_MODELS.create_tool(kind)
+        first_person_model.scale = Vector3.ONE * (0.34 if kind == "stone" else 0.46)
+        first_person_model.rotation_degrees = Vector3(-8.0, 0.0, -8.0)
+        first_person_model.position = Vector3.ZERO
+        held_tool_root.add_child(first_person_model)
+
+    # Representación del mundo: un objeto separado unido al RightHand del cuerpo.
+    if is_instance_valid(world_held_tool_root):
+        var world_model := TOOL_MODELS.create_tool(kind)
+        world_model.scale = Vector3.ONE * (0.72 if kind == "stone" else 0.78)
+        world_model.rotation_degrees = Vector3(-8.0, 0.0, -8.0)
+        world_model.position = Vector3.ZERO
+        world_held_tool_root.add_child(world_model)
 
 func show_message(text_value: String) -> void:
     if is_instance_valid(message):
