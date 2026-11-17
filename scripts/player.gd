@@ -192,8 +192,8 @@ func _attach_first_person_model_arms() -> void:
     arm_model.name = "FirstPersonCharacterArms"
     # Vista de brazos ligeramente reducida y adelantada para que no ocupen
     # media pantalla por estar demasiado cerca del plano de cámara.
-    arm_model.scale = character_visual.scale * 0.88
-    arm_model.position = Vector3(0.0, -1.34 * arm_model.scale.y, -0.62)
+    arm_model.scale = character_visual.scale * 0.72
+    arm_model.position = Vector3(0.0, -1.28 * arm_model.scale.y, -0.62)
     first_person_arms.add_child(arm_model)
     arm_model.visible = true
     first_person_character_animation = _find_character_animation(arm_model)
