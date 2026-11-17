@@ -618,7 +618,7 @@ func _make_player() -> void:
     var right_hand_anchor := player.get_first_person_hand_attachment()
     if right_hand_anchor != null:
         right_hand_anchor.add_child(held_tool_root)
-        held_tool_root.position = Vector3(0.02, -0.03, 0.0)
+        held_tool_root.position = Vector3(-0.24, -0.03, 0.0)
         print("HELD_TOOL_ATTACHMENT: RightHand bone")
     else:
         # Fallback seguro solo si algún GLB no trae el hueso de mano.
@@ -1663,8 +1663,12 @@ func _refresh_held_tool() -> void:
     if kind.is_empty():
         return
     var model := TOOL_MODELS.create_tool(kind)
-    model.scale = Vector3.ONE * 0.46
+    model.scale = Vector3.ONE * (0.34 if kind == "stone" else 0.46)
     model.rotation_degrees = Vector3(-8.0, 0.0, -8.0)
+    if kind == "stone":
+        # El punto de agarre del canto rodado queda en el centro de la palma,
+        # no por delante de los dedos ni separado del hueso de la mano.
+        model.position = Vector3.ZERO
     held_tool_root.add_child(model)
 
 func show_message(text_value: String) -> void:
