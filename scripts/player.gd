@@ -114,7 +114,7 @@ func set_character_skin(index: int) -> void:
     add_child(character_visual)
     # El cuerpo completo permanece renderizable para otros observadores.
     # Solo la cámara FPS local excluye la capa 2; las cámaras de terceros deben incluirla.
-    character_visual.layers = 2
+    _set_visual_layers(character_visual, 2)
     character_visual.visible = true
     _ensure_world_hand_attachment(character_visual)
     character_animation = _find_character_animation(character_visual)
@@ -305,6 +305,12 @@ func _ensure_first_person_hand_attachment(skeleton: Skeleton3D) -> void:
     first_person_hand_attachment = attachment
     print("FPS_HAND_ATTACHMENT bone=RightHand index=", hand_bone_index)
 
+
+func _set_visual_layers(root: Node, layer_mask: int) -> void:
+    if root is VisualInstance3D:
+        (root as VisualInstance3D).layers = layer_mask
+    for child in root.get_children():
+        _set_visual_layers(child, layer_mask)
 
 func _ensure_world_hand_attachment(root: Node) -> void:
     var skeleton := _find_skeleton3d(root)
