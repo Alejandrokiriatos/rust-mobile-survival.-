@@ -26,6 +26,7 @@ var crouching := false
 var character_visual: Node3D
 var character_animation: AnimationPlayer
 var first_person_character_animation: AnimationPlayer
+var first_person_hand_attachment: BoneAttachment3D
 var current_character_animation := ""
 var first_person_arms: Node3D
 var arms_action_tween: Tween
@@ -86,6 +87,9 @@ func set_character_skin(index: int) -> void:
     character_visual = null
     character_animation = null
     first_person_character_animation = null
+    first_person_hand_attachment = null
+    for old_arm_child in first_person_arms.get_children():
+        old_arm_child.queue_free()
     current_character_animation = ""
 
     var scene_path: String = CHARACTER_SCENES[index]
@@ -229,6 +233,7 @@ func _filter_imported_arm_meshes(root: Node) -> void:
             source_node.visible = false
             push_warning("No se encontró Skeleton3D para " + source_node.name)
             continue
+        _ensure_first_person_hand_attachment(skeleton)
         var source_array_mesh := source_node.mesh as ArrayMesh
         if source_array_mesh == null:
             source_node.visible = false
@@ -253,6 +258,27 @@ func _filter_imported_arm_meshes(root: Node) -> void:
             " SURFACES=", arms_mesh.get_surface_count(),
             " TRIANGLES=", _count_mesh_triangles(arms_mesh))
     print("FPS_RIG_EXTRACTION_COMPLETE meshes=", extracted_count)
+
+
+func _ensure_first_person_hand_attachment(skeleton: Skeleton3D) -> void:
+    if is_instance_valid(first_person_hand_attachment):
+        return
+    var hand_bone_index := skeleton.find_bone("RightHand")
+    if hand_bone_index < 0:
+        push_warning("El esqueleto GLB no contiene el hueso RightHand.")
+        return
+    var attachment := BoneAttachment3D.new()
+    attachment.name = "FPSRightHandAttachment"
+    attachment.bone_idx = hand_bone_index
+    skeleton.add_child(attachment)
+    first_person_hand_attachment = attachment
+    print("FPS_HAND_ATTACHMENT bone=RightHand index=", hand_bone_index)
+
+
+func get_first_person_hand_attachment() -> BoneAttachment3D:
+    if is_instance_valid(first_person_hand_attachment):
+        return first_person_hand_attachment
+    return null
 
 
 func _collect_mesh_instances(node: Node, output: Array[MeshInstance3D]) -> void:
