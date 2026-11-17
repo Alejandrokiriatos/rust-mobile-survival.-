@@ -219,11 +219,17 @@ func _attach_first_person_model_arms() -> void:
     arm_model.name = "FirstPersonCharacterArms"
     # Vista de brazos ligeramente reducida y adelantada para que no ocupen
     # media pantalla por estar demasiado cerca del plano de cámara.
-    arm_model.scale = character_visual.scale * 0.72
-    # El GLB mira hacia +Z y la cámara FPS mira hacia -Z; giramos el rig
-    # duplicado para que RightHand coincida con el lado derecho de la pantalla.
+    # Separación horizontal mayor y encuadre más bajo: los brazos salen
+    # desde los dos laterales inferiores, no como un par de piezas flotando
+    # en el centro de la pantalla. Se conserva la escala vertical del GLB.
+    arm_model.scale = Vector3(
+        character_visual.scale.x * 0.96,
+        character_visual.scale.y * 0.72,
+        character_visual.scale.z * 0.72
+    )
+    # El GLB mira hacia +Z y la cámara FPS mira hacia -Z.
     arm_model.rotation_degrees.y = 180.0
-    arm_model.position = Vector3(0.0, -1.28 * arm_model.scale.y, -0.62)
+    arm_model.position = Vector3(0.0, -1.48 * arm_model.scale.y, -0.62)
     first_person_arms.add_child(arm_model)
     arm_model.visible = true
     first_person_character_animation = _find_character_animation(arm_model)
@@ -386,13 +392,13 @@ func _extract_skinned_arms(source: ArrayMesh, skin: Skin, skeleton: Skeleton3D) 
             var wa := vertex_arm_weights[a]
             var wb := vertex_arm_weights[b]
             var wd := vertex_arm_weights[d]
-            var influenced_vertices := int(wa >= 0.12) + int(wb >= 0.12) + int(wd >= 0.12)
+            var influenced_vertices := int(wa >= 0.10) + int(wb >= 0.10) + int(wd >= 0.10)
             var average_arm_weight := (wa + wb + wd) / 3.0
             var strongest_arm_weight := maxf(wa, maxf(wb, wd))
-            # Umbral más bajo en la costura del hombro para conservar el brazo
-            # superior entero. El torso central sigue fuera porque allí dominan
-            # los pesos Spine/Spine1/Spine2, no los de los brazos.
-            if average_arm_weight >= 0.22 and influenced_vertices >= 2 and strongest_arm_weight >= 0.30:
+            # Ampliar la transición del hombro para que no se corte a mitad
+            # del brazo. El centro del torso permanece excluido por los pesos
+            # dominantes de Spine/Spine1/Spine2.
+            if average_arm_weight >= 0.18 and influenced_vertices >= 2 and strongest_arm_weight >= 0.24:
                 arm_indices.append(a)
                 arm_indices.append(b)
                 arm_indices.append(d)
