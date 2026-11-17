@@ -173,7 +173,11 @@ func _ready() -> void:
     _make_player()
     _make_hud()
     _scatter_resources()
-    # La hierba procedural queda desactivada temporalmente; se retomará después.
+    # Hierba procedural por sectores: 16 MultiMesh para mantener el coste de dibujo bajo.
+    var grass_system = GRASS_SYSTEM.new()
+    grass_system.name = "GrassSystem"
+    add_child(grass_system)
+    grass_system.build(self)
     _spawn_wildlife()
     _load_game()
 
