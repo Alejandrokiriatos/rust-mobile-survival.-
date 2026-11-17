@@ -220,10 +220,10 @@ func _attach_first_person_model_arms() -> void:
     # Viewmodel de una mano, anclado visualmente al borde inferior:
     # se reduce la escala y se desplaza hacia el centro para que el antebrazo
     # entre desde abajo y la mano quede dentro del encuadre.
-    arm_model.scale = character_visual.scale * 0.62
+    arm_model.scale = character_visual.scale * 0.46
     # El GLB mira hacia +Z y la cámara FPS mira hacia -Z.
     arm_model.rotation_degrees.y = 180.0
-    arm_model.position = Vector3(0.14, -1.55 * arm_model.scale.y, -0.48)
+    arm_model.position = Vector3(0.18, -1.95 * arm_model.scale.y, -0.50)
     first_person_arms.add_child(arm_model)
     arm_model.visible = true
     first_person_character_animation = _find_character_animation(arm_model)
@@ -322,14 +322,8 @@ func _is_first_person_arm_bone(bone_name: String) -> bool:
         or normalized.begins_with("righthand")
 
 
-func _is_first_person_chest_bone(bone_name: String) -> bool:
-    var normalized := bone_name.to_lower().replace("_", "").replace(" ", "")
-    return normalized.begins_with("spine") or normalized.begins_with("chest")
-
-
 func _extract_skinned_arms(source: ArrayMesh, skin: Skin, skeleton: Skeleton3D) -> ArrayMesh:
     var arm_bind_indices: Dictionary = {}
-    var chest_bind_indices: Dictionary = {}
     for bind_index in range(skin.get_bind_count()):
         var bind_name := String(skin.get_bind_name(bind_index))
         if bind_name.is_empty():
@@ -338,8 +332,6 @@ func _extract_skinned_arms(source: ArrayMesh, skin: Skin, skeleton: Skeleton3D) 
                 bind_name = skeleton.get_bone_name(skeleton_bone)
         if _is_first_person_arm_bone(bind_name):
             arm_bind_indices[bind_index] = true
-        elif _is_first_person_chest_bone(bind_name):
-            chest_bind_indices[bind_index] = true
     if arm_bind_indices.is_empty():
         push_warning("Skin no contiene binds nombrados de brazos/manos.")
         return null
@@ -347,7 +339,6 @@ func _extract_skinned_arms(source: ArrayMesh, skin: Skin, skeleton: Skeleton3D) 
     for bind_index in arm_bind_indices:
         bind_report.append("%d:%s" % [bind_index, String(skin.get_bind_name(bind_index))])
     print("FPS_RIG_ARM_BINDS ", bind_report)
-    print("FPS_RIG_CHEST_BINDS count=", chest_bind_indices.size())
 
     var result := ArrayMesh.new()
     var total_kept_triangles := 0
@@ -362,24 +353,16 @@ func _extract_skinned_arms(source: ArrayMesh, skin: Skin, skeleton: Skeleton3D) 
             continue
         var influences_per_vertex := 8 if bone_data.size() == vertices.size() * 8 else 4
         var vertex_arm_weights := PackedFloat32Array()
-        var vertex_chest_weights := PackedFloat32Array()
         vertex_arm_weights.resize(vertices.size())
-        vertex_chest_weights.resize(vertices.size())
         for vertex_index in range(vertices.size()):
             var arm_weight := 0.0
-            var chest_weight := 0.0
             var base := vertex_index * influences_per_vertex
             for influence in range(influences_per_vertex):
                 var palette_index := int(bone_data[base + influence])
                 var weight := float(weight_data[base + influence])
-                if weight <= 0.0:
-                    continue
-                if arm_bind_indices.has(palette_index):
+                if weight > 0.0 and arm_bind_indices.has(palette_index):
                     arm_weight += weight
-                elif chest_bind_indices.has(palette_index):
-                    chest_weight += weight
             vertex_arm_weights[vertex_index] = arm_weight
-            vertex_chest_weights[vertex_index] = chest_weight
 
         var source_indices := PackedInt32Array()
         var raw_indices: Variant = arrays[Mesh.ARRAY_INDEX]
@@ -401,22 +384,9 @@ func _extract_skinned_arms(source: ArrayMesh, skin: Skin, skeleton: Skeleton3D) 
             var influenced_vertices := int(wa >= 0.10) + int(wb >= 0.10) + int(wd >= 0.10)
             var average_arm_weight := (wa + wb + wd) / 3.0
             var strongest_arm_weight := maxf(wa, maxf(wb, wd))
-            var keep_arm := average_arm_weight >= 0.18 and influenced_vertices >= 2 and strongest_arm_weight >= 0.24
-
-            # Pequeño puente de pecho y hombro: se conservan únicamente los
-            # triángulos de la parte alta del torso. Al quedar esta zona bajo
-            # el borde inferior de la cámara, el brazo nace visualmente del
-            # cuerpo sin mostrar cabeza, torso completo ni el brazo izquierdo.
-            var ca := vertex_chest_weights[a]
-            var cb := vertex_chest_weights[b]
-            var cd := vertex_chest_weights[d]
-            var chest_vertices := int(ca >= 0.12) + int(cb >= 0.12) + int(cd >= 0.12)
-            var average_chest_weight := (ca + cb + cd) / 3.0
-            var center_y := (vertices[a].y + vertices[b].y + vertices[d].y) / 3.0
-            var keep_chest := chest_vertices >= 2 and average_chest_weight >= 0.20 \
-                and center_y >= 0.92 and center_y <= 1.42
-
-            if keep_arm or keep_chest:
+            # Se incluye el hombro derecho para que la malla llegue hasta
+            # el borde inferior del encuadre; el pecho completo queda fuera.
+            if average_arm_weight >= 0.18 and influenced_vertices >= 2 and strongest_arm_weight >= 0.24:
                 arm_indices.append(a)
                 arm_indices.append(b)
                 arm_indices.append(d)
