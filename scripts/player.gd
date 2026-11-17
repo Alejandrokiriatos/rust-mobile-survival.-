@@ -23,6 +23,13 @@ var hunger := 100.0
 var thirst := 100.0
 var stamina := 100.0
 var crouching := false
+var character_visual: Node3D
+var character_animation: AnimationPlayer
+var current_character_animation := ""
+var first_person_arms: Node3D
+const CHARACTER_SCENE := "res://assets/characters/laboratory/SKIN_01.glb"
+const CHARACTER_SOURCE_HEIGHT := 1.812841
+const CHARACTER_TARGET_HEIGHT := 1.75
 
 func _ready() -> void:
     name = "Player"
@@ -42,9 +49,145 @@ func _ready() -> void:
     camera.rotation.x = deg_to_rad(-12.0)
     camera.current = true
     add_child(camera)
+    _build_first_person_arms()
     floor_snap_length = 0.35
     floor_max_angle = deg_to_rad(48.0)
+    _load_character_visual()
     add_to_group("player")
+
+
+func _load_character_visual() -> void:
+    if not ResourceLoader.exists(CHARACTER_SCENE):
+        push_warning("No se encontró el personaje 3D del laboratorio: " + CHARACTER_SCENE)
+        return
+    var packed := ResourceLoader.load(CHARACTER_SCENE) as PackedScene
+    if packed == null:
+        push_warning("Godot no pudo importar el GLB del personaje.")
+        return
+    character_visual = packed.instantiate() as Node3D
+    if character_visual == null:
+        push_warning("La escena del personaje no tiene un nodo Node3D raíz.")
+        return
+    character_visual.name = "LaboratoryCharacter"
+    var normalized_scale := CHARACTER_TARGET_HEIGHT / CHARACTER_SOURCE_HEIGHT
+    character_visual.scale = Vector3.ONE * normalized_scale
+    add_child(character_visual)
+    # El cuerpo completo se oculta durante la cámara en primera persona para
+    # evitar que la cabeza/malla atraviese la cámara. Sigue animándose y puede
+    # mostrarse en la vista externa de inspección/captura.
+    character_visual.visible = false
+    character_animation = _find_character_animation(character_visual)
+    if character_animation == null:
+        push_warning("El modelo se importó, pero no contiene AnimationPlayer.")
+    else:
+        _play_character_animation("Idle")
+    print("CHARACTER_READY: ", CHARACTER_SCENE, " height=", CHARACTER_TARGET_HEIGHT)
+
+func _find_character_animation(node: Node) -> AnimationPlayer:
+    if node is AnimationPlayer:
+        return node as AnimationPlayer
+    for child in node.get_children():
+        var found := _find_character_animation(child)
+        if found != null:
+            return found
+    return null
+
+func _play_character_animation(preferred: String) -> void:
+    if character_animation == null:
+        return
+    var selected := ""
+    for animation_name in character_animation.get_animation_list():
+        if String(animation_name).to_lower() == preferred.to_lower():
+            selected = String(animation_name)
+            break
+    if selected.is_empty():
+        var needle := preferred.to_lower()
+        for animation_name in character_animation.get_animation_list():
+            if String(animation_name).to_lower().contains(needle):
+                selected = String(animation_name)
+                break
+    if selected.is_empty() or selected == current_character_animation:
+        return
+    current_character_animation = selected
+    character_animation.play(selected)
+
+func _update_character_animation() -> void:
+    if character_animation == null:
+        return
+    if not is_on_floor():
+        _play_character_animation("Jump")
+    elif crouching:
+        _play_character_animation("Crouch idle")
+    elif Vector2(velocity.x, velocity.z).length() > 0.35:
+        _play_character_animation("Run" if sprinting else "Walk")
+    else:
+        _play_character_animation("Idle")
+
+func set_character_body_visible(visible_value: bool) -> void:
+    if is_instance_valid(character_visual):
+        character_visual.visible = visible_value
+
+func _build_first_person_arms() -> void:
+    first_person_arms = Node3D.new()
+    first_person_arms.name = "FirstPersonArms"
+    camera.add_child(first_person_arms)
+
+    var sleeve := StandardMaterial3D.new()
+    sleeve.albedo_color = Color(0.22, 0.29, 0.19)
+    sleeve.roughness = 0.94
+    var skin := StandardMaterial3D.new()
+    skin.albedo_color = Color(0.66, 0.43, 0.31)
+    skin.roughness = 0.9
+
+    # Brazos de bajo poligonaje, unidos a la cámara y animados con el movimiento
+    # de las herramientas. No sustituyen el rig del personaje: son su vista de manos.
+    _add_arm_segment(first_person_arms, Vector3(-0.37, -0.25, -0.25), Vector3(-0.22, -0.37, -0.48), 0.115, sleeve)
+    _add_arm_segment(first_person_arms, Vector3(-0.22, -0.37, -0.48), Vector3(0.27, -0.42, -0.70), 0.078, skin)
+    _add_arm_segment(first_person_arms, Vector3(0.36, -0.25, -0.25), Vector3(0.40, -0.37, -0.49), 0.115, sleeve)
+    _add_arm_segment(first_person_arms, Vector3(0.40, -0.37, -0.49), Vector3(0.43, -0.44, -0.70), 0.078, skin)
+    _add_arm_palm(first_person_arms, Vector3(0.27, -0.42, -0.72), skin)
+    _add_arm_palm(first_person_arms, Vector3(0.43, -0.44, -0.73), skin)
+
+func _add_arm_segment(parent: Node3D, start: Vector3, finish: Vector3, radius: float, material: Material) -> void:
+    var direction := finish - start
+    var length := direction.length()
+    if length < 0.001:
+        return
+    var capsule := CapsuleMesh.new()
+    capsule.radius = radius
+    capsule.height = length + radius * 2.0
+    capsule.radial_segments = 8
+    capsule.rings = 3
+    var arm := MeshInstance3D.new()
+    arm.mesh = capsule
+    arm.material_override = material
+    arm.position = (start + finish) * 0.5
+    arm.basis = Basis(Quaternion(Vector3.UP, direction.normalized()))
+    arm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+    parent.add_child(arm)
+
+func _add_arm_palm(parent: Node3D, palm_position: Vector3, material: Material) -> void:
+    var palm_mesh := SphereMesh.new()
+    palm_mesh.radius = 0.092
+    palm_mesh.height = 0.16
+    palm_mesh.radial_segments = 10
+    palm_mesh.rings = 5
+    var palm := MeshInstance3D.new()
+    palm.mesh = palm_mesh
+    palm.material_override = material
+    palm.position = palm_position
+    palm.scale = Vector3(0.82, 0.72, 1.12)
+    palm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+    parent.add_child(palm)
+
+func _update_first_person_arms(delta: float) -> void:
+    if not is_instance_valid(first_person_arms):
+        return
+    var movement := Vector2(velocity.x, velocity.z).length()
+    var strength := clampf(movement / maxf(walk_speed, 0.1), 0.0, 1.0)
+    var phase := float(Time.get_ticks_msec()) * 0.008
+    first_person_arms.position.y = sin(phase) * 0.012 * strength
+    first_person_arms.rotation.z = sin(phase * 0.5) * 0.018 * strength
 
 func set_sprinting(enabled: bool) -> void:
     sprinting = enabled and stamina > 1.0
@@ -112,6 +255,8 @@ func _physics_process(delta: float) -> void:
     velocity.x = move_toward(velocity.x, target_velocity.x, acceleration * delta)
     velocity.z = move_toward(velocity.z, target_velocity.z, acceleration * delta)
     move_and_slide()
+    _update_character_animation()
+    _update_first_person_arms(delta)
 
     hunger = maxf(0.0, hunger - delta * 0.018)
     thirst = maxf(0.0, thirst - delta * 0.032)
