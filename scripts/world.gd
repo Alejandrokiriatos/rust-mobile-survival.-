@@ -614,7 +614,7 @@ func _make_player() -> void:
     add_child(player)
     held_tool_root = Node3D.new()
     held_tool_root.name = "HeldToolMount"
-    held_tool_root.position = Vector3(0.42, -0.38, -0.72)
+    held_tool_root.position = Vector3(0.38, -0.25, -0.62)
     held_tool_root.rotation_degrees = Vector3(-18.0, -24.0, -12.0)
     player.camera.add_child(held_tool_root)
     _refresh_held_tool()
@@ -1655,7 +1655,7 @@ func _refresh_held_tool() -> void:
     if kind.is_empty():
         return
     var model := TOOL_MODELS.create_tool(kind)
-    model.scale = Vector3.ONE * 0.34
+    model.scale = Vector3.ONE * 0.46
     model.rotation_degrees = Vector3(-8.0, 0.0, -8.0)
     held_tool_root.add_child(model)
 
