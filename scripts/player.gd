@@ -426,7 +426,7 @@ func _extract_skinned_arms(source: ArrayMesh, skin: Skin, skeleton: Skeleton3D) 
         var arm_arrays: Array = []
         arm_arrays.resize(Mesh.ARRAY_MAX)
         for channel in [Mesh.ARRAY_VERTEX, Mesh.ARRAY_NORMAL, Mesh.ARRAY_TANGENT,
-            Mesh.ARRAY_COLOR, Mesh.ARRAY_TEX_UV, Mesh.ARRAY_UV2,
+            Mesh.ARRAY_COLOR, Mesh.ARRAY_TEX_UV, Mesh.ARRAY_TEX_UV2,
             Mesh.ARRAY_BONES, Mesh.ARRAY_WEIGHTS]:
             arm_arrays[channel] = arrays[channel]
         arm_arrays[Mesh.ARRAY_INDEX] = arm_indices
