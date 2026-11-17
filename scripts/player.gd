@@ -197,6 +197,9 @@ func _attach_first_person_model_arms() -> void:
     # Vista de brazos ligeramente reducida y adelantada para que no ocupen
     # media pantalla por estar demasiado cerca del plano de cámara.
     arm_model.scale = character_visual.scale * 0.72
+    # El GLB mira hacia +Z y la cámara FPS mira hacia -Z; giramos el rig
+    # duplicado para que RightHand coincida con el lado derecho de la pantalla.
+    arm_model.rotation_degrees.y = 180.0
     arm_model.position = Vector3(0.0, -1.28 * arm_model.scale.y, -0.62)
     first_person_arms.add_child(arm_model)
     arm_model.visible = true
