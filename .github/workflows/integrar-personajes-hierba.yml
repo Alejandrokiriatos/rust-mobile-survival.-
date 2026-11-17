@@ -22,7 +22,8 @@ jobs:
         run: |
           set -euo pipefail
           python3 - <<'PY'
-          from pathlib import Path\n          import textwrap
+          from pathlib import Path
+          import textwrap
           p = Path("scripts/player.gd")
           s = p.read_text()
           marker = "var crouching := false\n"
