@@ -181,22 +181,26 @@ func _attach_first_person_model_arms() -> void:
     arm_model.name = "FirstPersonCharacterArms"
     first_person_arms.add_child(arm_model)
     arm_model.visible = true
-    # Registrar la estructura importada del GLB para aislar los brazos y manos
-    # por sus huesos/meshes reales, sin fabricar geometría.
-    _inspect_character_rig(arm_model)
+    # Mantener únicamente meshes reales cuyo nombre identifique brazos/manos.
+    # Si el GLB usa una única malla corporal, el log lo revelará y se aislará
+    # mediante sus superficies/huesos en el siguiente ajuste, nunca con cápsulas.
+    _filter_imported_arm_meshes(arm_model)
 
-func _inspect_character_rig(node: Node) -> void:
+func _filter_imported_arm_meshes(node: Node) -> void:
     if node is Skeleton3D:
         var skeleton := node as Skeleton3D
         var bone_names: Array[String] = []
         for bone_index in range(skeleton.get_bone_count()):
             bone_names.append(skeleton.get_bone_name(bone_index))
         print("FPS_RIG_SKELETON ", skeleton.get_path(), " BONES=", bone_names)
-    elif node is MeshInstance3D:
+    if node is MeshInstance3D:
         var mesh_node := node as MeshInstance3D
-        print("FPS_RIG_MESH ", mesh_node.get_path(), " NAME=", mesh_node.name, " SKIN=", mesh_node.skin != null)
+        var mesh_name := mesh_node.name.to_lower()
+        var is_arm_mesh := mesh_name.contains("arm") or mesh_name.contains("hand") or mesh_name.contains("forearm") or mesh_name.contains("wrist")
+        mesh_node.visible = is_arm_mesh
+        print("FPS_RIG_MESH ", mesh_node.get_path(), " NAME=", mesh_node.name, " VISIBLE=", is_arm_mesh, " SKIN=", mesh_node.skin != null)
     for child in node.get_children():
-        _inspect_character_rig(child)
+        _filter_imported_arm_meshes(child)
 
 func _update_first_person_arms(delta: float) -> void:
     if not is_instance_valid(first_person_arms) or arms_action_active:
