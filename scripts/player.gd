@@ -146,8 +146,31 @@ func _play_character_animation(preferred: String) -> void:
         return
     current_character_animation = selected
     character_animation.play(selected)
-    if first_person_character_animation != null and first_person_character_animation.has_animation(selected):
-        first_person_character_animation.play(selected)
+    _play_first_person_pose(selected)
+
+
+func _first_person_animation_for(body_animation: String) -> String:
+    # El GLB tiene clips de locomoción con los brazos adelantados, a diferencia
+    # de Idle/Walk normales, que dejan los brazos colgando junto al cuerpo.
+    match body_animation.to_lower():
+        "idle":
+            return "Rifle idle (low ready)"
+        "walk":
+            return "Rifle walk (aiming)"
+        "run":
+            return "Rifle run"
+        "crouch idle":
+            return "Rifle idle (low ready)"
+        _:
+            return body_animation
+
+
+func _play_first_person_pose(body_animation: String) -> void:
+    if first_person_character_animation == null:
+        return
+    var fps_animation := _first_person_animation_for(body_animation)
+    if first_person_character_animation.has_animation(fps_animation):
+        first_person_character_animation.play(fps_animation)
 
 func _update_character_animation() -> void:
     if character_animation == null:
@@ -214,10 +237,9 @@ func _attach_first_person_model_arms() -> void:
 
 
 func _on_first_person_animation_finished(_animation_name: StringName) -> void:
-    if first_person_character_animation == null or current_character_animation.is_empty():
+    if current_character_animation.is_empty():
         return
-    if first_person_character_animation.has_animation(current_character_animation):
-        first_person_character_animation.play(current_character_animation)
+    _play_first_person_pose(current_character_animation)
 
 
 func _filter_imported_arm_meshes(root: Node) -> void:
@@ -293,8 +315,8 @@ func _collect_mesh_instances(node: Node, output: Array[MeshInstance3D]) -> void:
 
 func _is_first_person_arm_bone(bone_name: String) -> bool:
     var normalized := bone_name.to_lower().replace("_", "").replace(" ", "")
-    # Excluir Shoulder: algunos GLB asignan parte del torso a esos pesos.
-    # La vista FPS conserva brazos superiores, antebrazos, manos y dedos.
+    # Incluimos hombros y brazos completos: son las zonas de transición
+    # que unen el torso oculto con los antebrazos visibles en primera persona.
     return normalized.begins_with("leftshoulder") \
         or normalized.begins_with("leftarm") \
         or normalized.begins_with("leftforearm") \
@@ -364,10 +386,13 @@ func _extract_skinned_arms(source: ArrayMesh, skin: Skin, skeleton: Skeleton3D) 
             var wa := vertex_arm_weights[a]
             var wb := vertex_arm_weights[b]
             var wd := vertex_arm_weights[d]
-            var influenced_vertices := int(wa >= 0.25) + int(wb >= 0.25) + int(wd >= 0.25)
+            var influenced_vertices := int(wa >= 0.12) + int(wb >= 0.12) + int(wd >= 0.12)
             var average_arm_weight := (wa + wb + wd) / 3.0
-            # Incluye triángulos de transición del hombro sin arrastrar el torso.
-            if average_arm_weight >= 0.46 and influenced_vertices >= 2:
+            var strongest_arm_weight := maxf(wa, maxf(wb, wd))
+            # Umbral más bajo en la costura del hombro para conservar el brazo
+            # superior entero. El torso central sigue fuera porque allí dominan
+            # los pesos Spine/Spine1/Spine2, no los de los brazos.
+            if average_arm_weight >= 0.22 and influenced_vertices >= 2 and strongest_arm_weight >= 0.30:
                 arm_indices.append(a)
                 arm_indices.append(b)
                 arm_indices.append(d)
