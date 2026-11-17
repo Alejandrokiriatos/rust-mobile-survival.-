@@ -27,6 +27,7 @@ var character_visual: Node3D
 var character_animation: AnimationPlayer
 var first_person_character_animation: AnimationPlayer
 var first_person_hand_attachment: BoneAttachment3D
+var world_hand_attachment: BoneAttachment3D
 var current_character_animation := ""
 var first_person_arms: Node3D
 var arms_action_tween: Tween
@@ -66,6 +67,8 @@ func _ready() -> void:
     # inclina la cámara hacia abajo y muestra terreno y vegetación al aparecer.
     camera.rotation.x = deg_to_rad(-12.0)
     camera.current = true
+    # La cámara local ve el viewmodel (capa 1), pero no el cuerpo completo (capa 2).
+    camera.cull_mask = 1
     add_child(camera)
     _build_first_person_arms()
     floor_snap_length = 0.35
@@ -88,6 +91,7 @@ func set_character_skin(index: int) -> void:
     character_animation = null
     first_person_character_animation = null
     first_person_hand_attachment = null
+    world_hand_attachment = null
     for old_arm_child in first_person_arms.get_children():
         old_arm_child.queue_free()
     current_character_animation = ""
@@ -108,9 +112,11 @@ func set_character_skin(index: int) -> void:
     var normalized_scale := CHARACTER_TARGET_HEIGHT / float(CHARACTER_SOURCE_HEIGHTS[index])
     character_visual.scale = Vector3.ONE * normalized_scale
     add_child(character_visual)
-    # El cuerpo se oculta en FPS para evitar que la cabeza atraviese la cámara;
-    # las ocho apariencias siguen disponibles y sus animaciones siguen activas.
-    character_visual.visible = false
+    # El cuerpo completo permanece renderizable para otros observadores.
+    # Solo la cámara FPS local excluye la capa 2; las cámaras de terceros deben incluirla.
+    character_visual.layers = 2
+    character_visual.visible = true
+    _ensure_world_hand_attachment(character_visual)
     character_animation = _find_character_animation(character_visual)
     _attach_first_person_model_arms()
     if character_animation == null:
@@ -299,6 +305,41 @@ func _ensure_first_person_hand_attachment(skeleton: Skeleton3D) -> void:
     first_person_hand_attachment = attachment
     print("FPS_HAND_ATTACHMENT bone=RightHand index=", hand_bone_index)
 
+
+func _ensure_world_hand_attachment(root: Node) -> void:
+    var skeleton := _find_skeleton3d(root)
+    if skeleton == null:
+        push_warning("El cuerpo del jugador no contiene Skeleton3D para montar el arma visible a otros jugadores.")
+        return
+    var hand_bone_index := skeleton.find_bone("RightHand")
+    if hand_bone_index < 0:
+        push_warning("El esqueleto del cuerpo no contiene RightHand.")
+        return
+    var attachment := BoneAttachment3D.new()
+    attachment.name = "WorldRightHandAttachment"
+    attachment.bone_idx = hand_bone_index
+    skeleton.add_child(attachment)
+    world_hand_attachment = attachment
+    print("WORLD_HAND_ATTACHMENT bone=RightHand index=", hand_bone_index)
+
+func _find_skeleton3d(node: Node) -> Skeleton3D:
+    if node is Skeleton3D:
+        return node as Skeleton3D
+    for child in node.get_children():
+        var found := _find_skeleton3d(child)
+        if found != null:
+            return found
+    return null
+
+func get_world_hand_attachment() -> BoneAttachment3D:
+    if is_instance_valid(world_hand_attachment):
+        return world_hand_attachment
+    return null
+
+func configure_observer_camera(observer_camera: Camera3D) -> void:
+    # Las cámaras de otros jugadores deben incluir la capa del cuerpo equipado.
+    if is_instance_valid(observer_camera):
+        observer_camera.cull_mask |= 2
 
 func get_first_person_hand_attachment() -> BoneAttachment3D:
     if is_instance_valid(first_person_hand_attachment):
