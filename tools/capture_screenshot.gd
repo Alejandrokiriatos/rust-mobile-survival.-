@@ -55,10 +55,81 @@ func _capture() -> void:
         quit(1)
         return
 
-    # Segunda vista de inspección: enseña la forma completa de la isla y la distribución del relieve.
+    # Tercera persona: colocamos un personaje real delante de la cámara,
+    # mirando al espectador y usando una pose de agarre con los codos flexionados.
     var hud := world.get("control_layer") as CanvasLayer
     if hud != null:
         hud.visible = false
+
+    var character_packed := load("res://assets/characters/laboratory/SKIN_01.glb") as PackedScene
+    if character_packed == null:
+        push_error("No se pudo cargar SKIN_01.glb para la vista de postura.")
+        quit(1)
+        return
+    var showcase_character := character_packed.instantiate() as Node3D
+    if showcase_character == null:
+        push_error("El GLB no produjo un personaje Node3D para la vista de postura.")
+        quit(1)
+        return
+    showcase_character.name = "CharacterFacingCameraPreview"
+    showcase_character.scale = Vector3.ONE * (1.75 / 1.812841)
+    world.add_child(showcase_character)
+
+    var forward := (-player.global_transform.basis.z).normalized()
+    var character_position := player.global_position + forward * 3.7
+    character_position.y = world._height_at(character_position.x, character_position.z) + 0.025
+    showcase_character.global_position = character_position
+
+    var showcase_camera := Camera3D.new()
+    showcase_camera.name = "CharacterPosturePreviewCamera"
+    showcase_camera.fov = 42.0
+    showcase_camera.near = 0.05
+    showcase_camera.far = 320.0
+    world.add_child(showcase_camera)
+    var camera_target := character_position + Vector3(0.0, 0.92, 0.0)
+    showcase_camera.global_position = character_position - forward * 5.0 + Vector3(0.0, 1.28, 0.0)
+    showcase_camera.look_at(camera_target, Vector3.UP)
+    showcase_camera.current = true
+
+    # Estos modelos miran hacia +Z; orientamos el frente del personaje hacia la cámara.
+    var to_camera := (showcase_camera.global_position - character_position).normalized()
+    showcase_character.rotation.y = atan2(to_camera.x, to_camera.z)
+
+    var showcase_animation := _find_animation_player(showcase_character)
+    if showcase_animation != null:
+        if showcase_animation.has_animation("Rifle idle (low ready)"):
+            showcase_animation.play("Rifle idle (low ready)")
+        elif showcase_animation.has_animation("Idle"):
+            showcase_animation.play("Idle")
+
+    # Objeto sujeto al hueso real de la mano derecha para que la pose se entienda.
+    var showcase_skeleton := _find_skeleton(showcase_character)
+    if showcase_skeleton != null:
+        var hand_index := showcase_skeleton.find_bone("RightHand")
+        if hand_index >= 0:
+            var hand_attachment := BoneAttachment3D.new()
+            hand_attachment.name = "ShowcaseRightHandAttachment"
+            hand_attachment.bone_idx = hand_index
+            showcase_skeleton.add_child(hand_attachment)
+            var showcase_stone := SurvivalToolModels.create_tool("stone")
+            showcase_stone.name = "ShowcaseHeldStone"
+            showcase_stone.scale = Vector3.ONE * 0.48
+            hand_attachment.add_child(showcase_stone)
+
+    for i in range(36):
+        await process_frame
+    print("CHARACTER_POSTURE_CAPTURE: position=", showcase_character.global_position,
+        " animation=", showcase_animation.current_animation if showcase_animation != null else "none")
+    if not _save_view(output_dir, "rust-mobile-survival-character-preview.png"):
+        quit(1)
+        return
+
+    showcase_character.queue_free()
+    showcase_camera.queue_free()
+    for i in range(2):
+        await process_frame
+
+    # Segunda vista de inspección: enseña la forma completa de la isla y la distribución del relieve.
     var overview := Camera3D.new()
     overview.name = "AutomatedMapOverviewCamera"
     overview.fov = 55.0
@@ -73,3 +144,23 @@ func _capture() -> void:
         quit(1)
         return
     quit()
+
+
+func _find_animation_player(node: Node) -> AnimationPlayer:
+    if node is AnimationPlayer:
+        return node as AnimationPlayer
+    for child in node.get_children():
+        var found := _find_animation_player(child)
+        if found != null:
+            return found
+    return null
+
+
+func _find_skeleton(node: Node) -> Skeleton3D:
+    if node is Skeleton3D:
+        return node as Skeleton3D
+    for child in node.get_children():
+        var found := _find_skeleton(child)
+        if found != null:
+            return found
+    return null
