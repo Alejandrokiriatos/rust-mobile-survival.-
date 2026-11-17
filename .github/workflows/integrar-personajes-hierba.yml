@@ -110,13 +110,13 @@ jobs:
           w = Path("scripts/world.gd")
           s = w.read_text()
           old = "    _scatter_resources()\n    # La hierba procedural queda desactivada temporalmente; se retomará después.\n    _spawn_wildlife()"
-          new = textwrap.dedent("""\n              _scatter_resources()
+          new = textwrap.indent(textwrap.dedent("""\n              _scatter_resources()
               # Vegetación del sistema procedural integrada después de crear el terreno.
               var grass_system = GRASS_SYSTEM.new()
               grass_system.name = "GrassSystem"
               add_child(grass_system)
               grass_system.build(self)
-              _spawn_wildlife()""")
+              _spawn_wildlife()""").lstrip(), "    ")
           if "grass_system.build(self)" not in s:
               assert old in s, "No se encontró el punto de integración de la hierba"
               s = s.replace(old, new, 1)
