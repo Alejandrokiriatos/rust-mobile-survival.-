@@ -2,10 +2,10 @@ extends Node3D
 
 # Vegetación distribuida por los 16 sectores del mundo (no depende del punto
 # donde apareció el jugador ni queda enterrada al cargar una partida guardada).
-const WORLD_SIZE := 512.0
+const WORLD_SIZE := 768.0
 const CHUNK_COUNT := 4
 const CHUNK_SIZE := WORLD_SIZE / float(CHUNK_COUNT)
-const CLUMPS_PER_CHUNK := 8000
+const CLUMPS_PER_CHUNK := 9000
 const GRASS_HEIGHT := 0.72
 
 var world_ref: Node3D
@@ -21,29 +21,27 @@ func build(world: Node3D) -> void:
             _make_chunk(chunk_x, chunk_z, blade_mesh, blade_material)
 
 func _make_blade_cluster() -> ArrayMesh:
+    # Seis hojas triangulares cruzadas: mata visualmente tupida con solo
+    # 18 vértices. La geometría se comparte entre todas las instancias.
     var vertices := PackedVector3Array()
     var normals := PackedVector3Array()
     var indices := PackedInt32Array()
-    var segments := 3
-    var width := 0.075
-    for blade in range(4):
-        var yaw := float(blade) * PI / 4.0
+    var blade_count := 6
+    var width := 0.105
+    for blade in range(blade_count):
+        var yaw := float(blade) * PI / float(blade_count)
         var direction := Vector3(sin(yaw), 0.0, cos(yaw))
         var side := Vector3(cos(yaw), 0.0, -sin(yaw))
         var base := vertices.size()
-        for segment in range(segments + 1):
-            var t := float(segment) / float(segments)
-            var y := t * GRASS_HEIGHT
-            var half_width := width * (1.0 - t * 0.86)
-            var bend := t * t * 0.11
-            var center := direction * bend + Vector3.UP * y
-            vertices.append(center - side * half_width)
-            vertices.append(center + side * half_width)
-            normals.append(Vector3.UP)
-            normals.append(Vector3.UP)
-            if segment < segments:
-                var a := base + segment * 2
-                indices.append_array(PackedInt32Array([a, a + 1, a + 2, a + 1, a + 3, a + 2]))
+        var lean := direction * (0.10 + 0.025 * float(blade % 2))
+        var height := GRASS_HEIGHT * (0.78 + 0.055 * float(blade % 4))
+        vertices.append(-side * width * 0.5)
+        vertices.append(side * width * 0.5)
+        vertices.append(lean + Vector3.UP * height)
+        normals.append(Vector3.UP)
+        normals.append(Vector3.UP)
+        normals.append(Vector3.UP)
+        indices.append_array(PackedInt32Array([base, base + 1, base + 2]))
     var arrays := []
     arrays.resize(Mesh.ARRAY_MAX)
     arrays[Mesh.ARRAY_VERTEX] = vertices
@@ -96,7 +94,12 @@ func _make_chunk(chunk_x: int, chunk_z: int, blade_mesh: Mesh, blade_material: M
         var wz := center_z + local_z
         var gy: float = world_ref.call("_height_at", wx, wz)
         var normal: Vector3 = world_ref.call("_terrain_normal_at", wx, wz)
-        if gy <= -2.5 or gy > 26.0 or 1.0 - normal.y > 0.48:
+        var biome_noise: FastNoiseLite = world_ref.get("biome_noise")
+        var biome := biome_noise.get_noise_2d(wx, wz) if biome_noise != null else 0.0
+        # Mantener la hierba fuera de la playa, desierto, nieve y laderas fuertes.
+        var desert_factor := clampf((-wx / (WORLD_SIZE * 0.5) + biome * 0.35 + 0.35) / 0.60, 0.0, 1.0)
+        var snow_factor := clampf((wz / (WORLD_SIZE * 0.5) + biome * 0.32 + 0.30) / 0.58, 0.0, 1.0) * (1.0 - desert_factor)
+        if gy <= -2.5 or gy > 26.0 or 1.0 - normal.y > 0.48 or desert_factor > 0.72 or snow_factor > 0.74:
             multi.set_instance_transform(i, Transform3D(Basis.IDENTITY.scaled(Vector3.ZERO), Vector3(local_x, gy, local_z)))
             multi.set_instance_color(i, Color(0, 0, 0, 0))
             multi.set_instance_custom_data(i, Color(0, 0, 0, 0))
@@ -118,7 +121,7 @@ func _make_chunk(chunk_x: int, chunk_z: int, blade_mesh: Mesh, blade_material: M
     instance.position = Vector3(center_x, 0.0, center_z)
     instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
     instance.visibility_range_begin = 0.0
-    instance.visibility_range_end = 115.0
+    instance.visibility_range_end = 190.0
     instance.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
     instance.custom_aabb = AABB(Vector3(-CHUNK_SIZE * 0.5, -8.0, -CHUNK_SIZE * 0.5), Vector3(CHUNK_SIZE, 42.0, CHUNK_SIZE))
     add_child(instance)
