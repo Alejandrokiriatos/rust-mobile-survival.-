@@ -456,7 +456,9 @@ func play_first_person_action(action: String) -> void:
     # Usarlos en el rig FPS mantiene el movimiento en los huesos reales.
     var action_clip := ""
     match action:
-        "punch":
+        "chop", "mine", "punch":
+            # No hay clips dedicados de hacha/pico en este GLB; Punch es el
+            # clip real más cercano y hace que el arma siga la mano derecha.
             action_clip = "Punch"
         "shoot":
             action_clip = "Rifle fire (single)"
