@@ -150,8 +150,8 @@ func _play_character_animation(preferred: String) -> void:
 
 
 func _first_person_animation_for(body_animation: String) -> String:
-    # El GLB tiene clips de locomoción con los brazos adelantados, a diferencia
-    # de Idle/Walk normales, que dejan los brazos colgando junto al cuerpo.
+    # El viewmodel usa un único brazo derecho. Mantiene una pose de agarre
+    # adelantada mientras el cuerpo sigue reproduciendo Idle/Walk/Run normal.
     match body_animation.to_lower():
         "idle":
             return "Rifle idle (low ready)"
@@ -219,17 +219,13 @@ func _attach_first_person_model_arms() -> void:
     arm_model.name = "FirstPersonCharacterArms"
     # Vista de brazos ligeramente reducida y adelantada para que no ocupen
     # media pantalla por estar demasiado cerca del plano de cámara.
-    # Separación horizontal mayor y encuadre más bajo: los brazos salen
-    # desde los dos laterales inferiores, no como un par de piezas flotando
-    # en el centro de la pantalla. Se conserva la escala vertical del GLB.
-    arm_model.scale = Vector3(
-        character_visual.scale.x * 0.96,
-        character_visual.scale.y * 0.72,
-        character_visual.scale.z * 0.72
-    )
+    # Viewmodel de una sola mano: solo el brazo derecho entra en cámara.
+    # Se coloca abajo y a la derecha, como en FPS móviles con herramienta
+    # de una mano; evitamos dos brazos cruzados que parecen suspendidos.
+    arm_model.scale = character_visual.scale * 0.72
     # El GLB mira hacia +Z y la cámara FPS mira hacia -Z.
     arm_model.rotation_degrees.y = 180.0
-    arm_model.position = Vector3(0.0, -1.48 * arm_model.scale.y, -0.62)
+    arm_model.position = Vector3(0.34, -1.90 * arm_model.scale.y, -0.58)
     first_person_arms.add_child(arm_model)
     arm_model.visible = true
     first_person_character_animation = _find_character_animation(arm_model)
@@ -288,7 +284,7 @@ func _filter_imported_arm_meshes(root: Node) -> void:
         print("FPS_RIG_EXTRACTED ", arms_instance.get_path(),
             " SURFACES=", arms_mesh.get_surface_count(),
             " TRIANGLES=", _count_mesh_triangles(arms_mesh))
-    print("FPS_RIG_EXTRACTION_COMPLETE meshes=", extracted_count)
+    print("FPS_RIG_EXTRACTION_COMPLETE meshes=", extracted_count, " MODE=RIGHT_HAND_ONLY")
 
 
 func _ensure_first_person_hand_attachment(skeleton: Skeleton3D) -> void:
@@ -321,13 +317,10 @@ func _collect_mesh_instances(node: Node, output: Array[MeshInstance3D]) -> void:
 
 func _is_first_person_arm_bone(bone_name: String) -> bool:
     var normalized := bone_name.to_lower().replace("_", "").replace(" ", "")
-    # Incluimos hombros y brazos completos: son las zonas de transición
-    # que unen el torso oculto con los antebrazos visibles en primera persona.
-    return normalized.begins_with("leftshoulder") \
-        or normalized.begins_with("leftarm") \
-        or normalized.begins_with("leftforearm") \
-        or normalized.begins_with("lefthand") \
-        or normalized.begins_with("rightshoulder") \
+    # Viewmodel de una sola mano. El brazo izquierdo se oculta por completo:
+    # para piedra, hacha y antorcha solo se ve la mano que empuña el objeto.
+    # El hombro derecho se conserva como transición hacia el brazo superior.
+    return normalized.begins_with("rightshoulder") \
         or normalized.begins_with("rightarm") \
         or normalized.begins_with("rightforearm") \
         or normalized.begins_with("righthand")
