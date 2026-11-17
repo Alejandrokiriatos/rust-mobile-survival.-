@@ -173,7 +173,11 @@ func _ready() -> void:
     _make_player()
     _make_hud()
     _scatter_resources()
-    # La hierba procedural queda desactivada temporalmente; se retomará después.
+    # Hierba procedural densa por sectores: cada mata es una instancia compartida.
+    var grass_system = GRASS_SYSTEM.new()
+    grass_system.name = "GrassSystem"
+    add_child(grass_system)
+    grass_system.build(self)
     _spawn_wildlife()
     _load_game()
 
@@ -1698,6 +1702,10 @@ func _try_attack() -> void:
         var swing := create_tween()
         swing.tween_property(held_tool_root, "rotation_degrees", Vector3(28.0, -8.0, 34.0), 0.10)
         swing.tween_property(held_tool_root, "rotation_degrees", Vector3(-18.0, -24.0, -12.0), 0.16)
+    if is_instance_valid(player.first_person_arms):
+        var arm_swing := create_tween()
+        arm_swing.tween_property(player.first_person_arms, "rotation_degrees", Vector3(-12.0, 0.0, 9.0), 0.10)
+        arm_swing.tween_property(player.first_person_arms, "rotation_degrees", Vector3.ZERO, 0.16)
     var from := player.camera.global_position
     var to := from + -player.camera.global_transform.basis.z * 3.2
     var query := PhysicsRayQueryParameters3D.create(from, to)
