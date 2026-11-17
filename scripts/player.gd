@@ -212,8 +212,8 @@ func _update_first_person_arms(delta: float) -> void:
     var movement := Vector2(velocity.x, velocity.z).length()
     var strength := clampf(movement / maxf(walk_speed, 0.1), 0.0, 1.0)
     var phase := float(Time.get_ticks_msec()) * 0.008
+    first_person_arms.position.x = sin(phase * 0.5) * 0.006 * strength
     first_person_arms.position.y = sin(phase) * 0.012 * strength
-    first_person_arms.rotation.z = sin(phase * 0.5) * 0.018 * strength
 
 func set_sprinting(enabled: bool) -> void:
     sprinting = enabled and stamina > 1.0
