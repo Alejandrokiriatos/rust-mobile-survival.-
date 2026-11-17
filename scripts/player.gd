@@ -295,9 +295,11 @@ func _is_first_person_arm_bone(bone_name: String) -> bool:
     var normalized := bone_name.to_lower().replace("_", "").replace(" ", "")
     # Excluir Shoulder: algunos GLB asignan parte del torso a esos pesos.
     # La vista FPS conserva brazos superiores, antebrazos, manos y dedos.
-    return normalized.begins_with("leftarm") \
+    return normalized.begins_with("leftshoulder") \
+        or normalized.begins_with("leftarm") \
         or normalized.begins_with("leftforearm") \
         or normalized.begins_with("lefthand") \
+        or normalized.begins_with("rightshoulder") \
         or normalized.begins_with("rightarm") \
         or normalized.begins_with("rightforearm") \
         or normalized.begins_with("righthand")
