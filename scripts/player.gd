@@ -168,14 +168,14 @@ func _build_first_person_arms() -> void:
     skin.albedo_color = Color(0.66, 0.43, 0.31)
     skin.roughness = 0.9
 
-    # Brazos de bajo poligonaje, unidos a la cámara y animados con el movimiento
-    # de las herramientas. No sustituyen el rig del personaje: son su vista de manos.
-    _add_arm_segment(first_person_arms, Vector3(-0.37, -0.25, -0.25), Vector3(-0.22, -0.37, -0.48), 0.115, sleeve)
-    _add_arm_segment(first_person_arms, Vector3(-0.22, -0.37, -0.48), Vector3(0.27, -0.42, -0.70), 0.078, skin)
-    _add_arm_segment(first_person_arms, Vector3(0.36, -0.25, -0.25), Vector3(0.40, -0.37, -0.49), 0.115, sleeve)
-    _add_arm_segment(first_person_arms, Vector3(0.40, -0.37, -0.49), Vector3(0.43, -0.44, -0.70), 0.078, skin)
-    _add_arm_palm(first_person_arms, Vector3(0.27, -0.42, -0.72), skin)
-    _add_arm_palm(first_person_arms, Vector3(0.43, -0.44, -0.73), skin)
+    # Antebrazos visibles en el borde inferior del encuadre FPS; las manos quedan
+    # adelantadas para que se lean junto a la herramienta y no se pierdan bajo el HUD.
+    _add_arm_segment(first_person_arms, Vector3(-0.52, -0.30, -0.22), Vector3(-0.34, -0.36, -0.55), 0.145, sleeve)
+    _add_arm_segment(first_person_arms, Vector3(-0.34, -0.36, -0.55), Vector3(-0.17, -0.34, -0.83), 0.105, skin)
+    _add_arm_segment(first_person_arms, Vector3(0.52, -0.30, -0.22), Vector3(0.37, -0.36, -0.55), 0.145, sleeve)
+    _add_arm_segment(first_person_arms, Vector3(0.37, -0.36, -0.55), Vector3(0.23, -0.34, -0.83), 0.105, skin)
+    _add_arm_palm(first_person_arms, Vector3(-0.15, -0.34, -0.86), skin)
+    _add_arm_palm(first_person_arms, Vector3(0.25, -0.34, -0.86), skin)
 
 func _add_arm_segment(parent: Node3D, start: Vector3, finish: Vector3, radius: float, material: Material) -> void:
     var direction := finish - start
@@ -320,6 +320,7 @@ func _physics_process(delta: float) -> void:
         velocity.y -= gravity * delta
     elif Input.is_action_just_pressed("jump"):
         velocity.y = jump_velocity
+        play_first_person_action("jump")
 
     var input_dir := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
     if is_instance_valid(joystick) and joystick.input_vector.length_squared() > 0.001:
