@@ -2,6 +2,7 @@ name: Captura visual del juego
 
 on:
   workflow_dispatch:
+  pull_request:
   push:
     branches: [main]
     paths:
