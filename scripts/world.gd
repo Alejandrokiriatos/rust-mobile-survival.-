@@ -614,9 +614,17 @@ func _make_player() -> void:
     add_child(player)
     held_tool_root = Node3D.new()
     held_tool_root.name = "HeldToolMount"
-    held_tool_root.position = Vector3(0.38, -0.25, -0.62)
     held_tool_root.rotation_degrees = Vector3(-18.0, -24.0, -12.0)
-    player.camera.add_child(held_tool_root)
+    var right_hand_anchor := player.get_first_person_hand_attachment()
+    if right_hand_anchor != null:
+        right_hand_anchor.add_child(held_tool_root)
+        held_tool_root.position = Vector3(0.02, -0.03, 0.0)
+        print("HELD_TOOL_ATTACHMENT: RightHand bone")
+    else:
+        # Fallback seguro solo si algún GLB no trae el hueso de mano.
+        player.camera.add_child(held_tool_root)
+        held_tool_root.position = Vector3(0.38, -0.25, -0.62)
+        push_warning("Herramienta en anclaje de cámara: no se encontró RightHand.")
     _refresh_held_tool()
 
 func _make_hud() -> void:
