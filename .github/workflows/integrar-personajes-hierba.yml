@@ -22,11 +22,11 @@ jobs:
         run: |
           set -euo pipefail
           python3 - <<'PY'
-          from pathlib import Path
+          from pathlib import Path\n          import textwrap
           p = Path("scripts/player.gd")
           s = p.read_text()
           marker = "var crouching := false\n"
-          addition = """var crouching := false
+          addition = textwrap.dedent("""\n          var crouching := false
           var character_visual: Node3D
           var character_animation: AnimationPlayer
           var current_character_animation := ""
@@ -109,13 +109,13 @@ jobs:
           w = Path("scripts/world.gd")
           s = w.read_text()
           old = "    _scatter_resources()\n    # La hierba procedural queda desactivada temporalmente; se retomará después.\n    _spawn_wildlife()"
-          new = """    _scatter_resources()
+          new = textwrap.dedent("""\n              _scatter_resources()
               # Vegetación del sistema procedural integrada después de crear el terreno.
               var grass_system = GRASS_SYSTEM.new()
               grass_system.name = "GrassSystem"
               add_child(grass_system)
               grass_system.build(self)
-              _spawn_wildlife()"""
+              _spawn_wildlife()""")
           if "grass_system.build(self)" not in s:
               assert old in s, "No se encontró el punto de integración de la hierba"
               s = s.replace(old, new, 1)
