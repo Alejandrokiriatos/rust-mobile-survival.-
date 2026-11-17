@@ -1665,7 +1665,7 @@ func _refresh_held_tool() -> void:
     if kind.is_empty():
         return
     var model := TOOL_MODELS.create_tool(kind)
-    model.scale = Vector3.ONE * (0.34 if kind == "stone" else 0.46)
+    model.scale = Vector3.ONE * (0.64 if kind == "stone" else 0.62)
     model.rotation_degrees = Vector3(-8.0, 0.0, -8.0)
     if kind == "stone":
         # El punto de agarre del canto rodado queda en el centro de la palma,
