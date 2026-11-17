@@ -27,6 +27,9 @@ var character_visual: Node3D
 var character_animation: AnimationPlayer
 var current_character_animation := ""
 var first_person_arms: Node3D
+var arms_action_tween: Tween
+var arms_action_active := false
+var arms_walk_phase := 0.0
 @export_range(0, 7, 1) var character_skin_index := 0
 const CHARACTER_SCENES := [
     "res://assets/characters/laboratory/SKIN_01.glb",
@@ -207,13 +210,65 @@ func _add_arm_palm(parent: Node3D, palm_position: Vector3, material: Material) -
     parent.add_child(palm)
 
 func _update_first_person_arms(delta: float) -> void:
-    if not is_instance_valid(first_person_arms):
+    if not is_instance_valid(first_person_arms) or arms_action_active:
         return
     var movement := Vector2(velocity.x, velocity.z).length()
     var strength := clampf(movement / maxf(walk_speed, 0.1), 0.0, 1.0)
-    var phase := float(Time.get_ticks_msec()) * 0.008
-    first_person_arms.position.x = sin(phase * 0.5) * 0.006 * strength
-    first_person_arms.position.y = sin(phase) * 0.012 * strength
+    arms_walk_phase += delta * (10.5 if sprinting else 7.2)
+    var walk_x := sin(arms_walk_phase * 0.5) * 0.018 * strength
+    var walk_y := absf(cos(arms_walk_phase)) * 0.035 * strength
+    var crouch_offset := Vector3(0.0, -0.055, 0.025) if crouching else Vector3.ZERO
+    var idle_breath := sin(float(Time.get_ticks_msec()) * 0.0018) * 0.004
+    first_person_arms.position = Vector3(walk_x, walk_y + idle_breath, 0.0) + crouch_offset
+    first_person_arms.rotation_degrees = Vector3(-2.0 * strength, 0.0, sin(arms_walk_phase * 0.5) * 1.8 * strength)
+
+func play_first_person_action(action: String) -> void:
+    if not is_instance_valid(first_person_arms):
+        return
+    if arms_action_tween != null and arms_action_tween.is_running():
+        arms_action_tween.kill()
+    arms_action_active = true
+    var target_rotation := Vector3(-18.0, 0.0, 10.0)
+    var target_position := Vector3(0.0, -0.10, -0.06)
+    var windup := 0.10
+    var impact := 0.11
+    match action:
+        "chop":
+            target_rotation = Vector3(-48.0, 0.0, 24.0)
+            target_position = Vector3(0.03, -0.18, 0.08)
+            windup = 0.22
+            impact = 0.12
+        "mine":
+            target_rotation = Vector3(-42.0, -8.0, -18.0)
+            target_position = Vector3(-0.02, -0.16, 0.07)
+            windup = 0.20
+        "shoot":
+            target_rotation = Vector3(9.0, 0.0, 0.0)
+            target_position = Vector3(0.0, 0.035, 0.12)
+            windup = 0.045
+            impact = 0.055
+        "reload":
+            target_rotation = Vector3(-12.0, 8.0, -12.0)
+            target_position = Vector3(0.0, -0.08, 0.06)
+            windup = 0.28
+            impact = 0.22
+        "punch":
+            target_rotation = Vector3(-24.0, 0.0, -18.0)
+            target_position = Vector3(0.0, -0.08, -0.12)
+        "jump":
+            target_rotation = Vector3(7.0, 0.0, 0.0)
+            target_position = Vector3(0.0, 0.05, -0.02)
+        _:
+            target_rotation = Vector3(-12.0, 0.0, 8.0)
+    arms_action_tween = create_tween()
+    arms_action_tween.tween_property(first_person_arms, "rotation_degrees", target_rotation, windup).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+    arms_action_tween.parallel().tween_property(first_person_arms, "position", target_position, windup)
+    arms_action_tween.tween_property(first_person_arms, "rotation_degrees", Vector3.ZERO, impact).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+    arms_action_tween.parallel().tween_property(first_person_arms, "position", Vector3.ZERO, impact)
+    arms_action_tween.tween_callback(func(): arms_action_active = false)
+
+func play_shoot_animation() -> void:
+    play_first_person_action("shoot")
 
 func set_sprinting(enabled: bool) -> void:
     sprinting = enabled and stamina > 1.0
@@ -221,7 +276,11 @@ func set_sprinting(enabled: bool) -> void:
 func set_crouching(enabled: bool) -> void:
     crouching = enabled
     if is_instance_valid(camera):
-        camera.position.y = 1.05 if crouching else 1.58
+        var camera_tween := create_tween()
+        camera_tween.tween_property(camera, "position:y", 1.05 if crouching else 1.58, 0.16)
+    if is_instance_valid(first_person_arms) and not arms_action_active:
+        var crouch_tween := create_tween()
+        crouch_tween.tween_property(first_person_arms, "position:y", -0.055 if crouching else 0.0, 0.16)
 
 func mobile_action(action: String, pressed: bool) -> void:
     if InputMap.has_action(action):
